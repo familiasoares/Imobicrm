@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, FormEvent } from "react";
+import React, { useState, FormEvent, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, Mail, Lock, LogIn, AlertCircle, Eye, EyeOff } from "lucide-react";
 
-export default function LoginPage() {
+// Componente interno que consome os SearchParams
+function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get("callbackUrl") ?? "/";
@@ -52,7 +53,7 @@ export default function LoginPage() {
         `,
             }}
         >
-            {/* Animated grid lines (decorative) */}
+            {/* Animated grid lines */}
             <div
                 className="pointer-events-none absolute inset-0 opacity-[0.03]"
                 style={{
@@ -131,8 +132,6 @@ export default function LoginPage() {
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-
-                        {/* Email field */}
                         <div className="space-y-1.5">
                             <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                 E-mail
@@ -142,8 +141,6 @@ export default function LoginPage() {
                                 <input
                                     id="email"
                                     type="email"
-                                    autoComplete="email"
-                                    required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="seu@email.com"
@@ -153,7 +150,6 @@ export default function LoginPage() {
                             </div>
                         </div>
 
-                        {/* Password field */}
                         <div className="space-y-1.5">
                             <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                 Senha
@@ -163,8 +159,6 @@ export default function LoginPage() {
                                 <input
                                     id="password"
                                     type={showPass ? "text" : "password"}
-                                    autoComplete="current-password"
-                                    required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••"
@@ -175,68 +169,39 @@ export default function LoginPage() {
                                     type="button"
                                     onClick={() => setShowPass((p) => !p)}
                                     className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                                    tabIndex={-1}
-                                    aria-label={showPass ? "Ocultar senha" : "Mostrar senha"}
                                 >
                                     {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 </button>
                             </div>
                         </div>
 
-                        {/* Submit */}
                         <button
                             type="submit"
                             disabled={loading}
-                            className="btn-brand w-full justify-center mt-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
-                            id="btn-login"
+                            className="btn-brand w-full justify-center mt-2 disabled:opacity-60"
                         >
-                            {loading ? (
-                                <>
-                                    <svg
-                                        className="h-4 w-4 animate-spin"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <circle
-                                            className="opacity-25"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                        />
-                                        <path
-                                            className="opacity-75"
-                                            fill="currentColor"
-                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                        />
-                                    </svg>
-                                    Entrando…
-                                </>
-                            ) : (
-                                <>
-                                    <LogIn className="h-4 w-4" />
-                                    Entrar
-                                </>
-                            )}
+                            {loading ? "Entrando..." : "Entrar"}
                         </button>
                     </form>
 
-                    {/* Demo hint */}
                     <p className="mt-6 text-center text-xs text-slate-600">
-                        Demo:{" "}
-                        <span className="font-mono text-slate-500">admin@imobicrm.com</span>
-                        {" / "}
-                        <span className="font-mono text-slate-500">123456</span>
+                        Demo: <span className="text-slate-500">admin@imobicrm.com / 123456</span>
                     </p>
                 </div>
 
-                {/* Bottom legal */}
                 <p className="mt-5 text-center text-[11px] text-slate-700">
                     © {new Date().getFullYear()} ImobiCRM — Todos os direitos reservados
                 </p>
             </div>
         </div>
+    );
+}
+
+// Página principal envolta em Suspense
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-[#020617] flex items-center justify-center text-white text-center">Carregando...</div>}>
+            <LoginContent />
+        </Suspense>
     );
 }
