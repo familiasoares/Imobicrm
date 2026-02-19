@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, Mail, Lock, LogIn, AlertCircle, Eye, EyeOff } from "lucide-react";
 
-// Componente interno que consome os SearchParams
+// 1. Subcomponente que utiliza useSearchParams
 function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -53,7 +53,7 @@ function LoginContent() {
         `,
             }}
         >
-            {/* Animated grid lines */}
+            {/* Componentes Decorativos de Fundo */}
             <div
                 className="pointer-events-none absolute inset-0 opacity-[0.03]"
                 style={{
@@ -65,7 +65,6 @@ function LoginContent() {
                 }}
             />
 
-            {/* Floating glow orbs */}
             <div
                 className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full opacity-20"
                 style={{
@@ -81,11 +80,8 @@ function LoginContent() {
                 }}
             />
 
-            {/* Login card */}
-            <div
-                className="relative w-full max-w-md animate-fade-in"
-                style={{ animationDuration: "0.4s" }}
-            >
+            {/* Card de Login principal */}
+            <div className="relative w-full max-w-md animate-fade-in" style={{ animationDuration: "0.4s" }}>
                 <div
                     className="rounded-3xl p-8 sm:p-10"
                     style={{
@@ -93,11 +89,9 @@ function LoginContent() {
                         border: "1px solid rgba(255,255,255,0.07)",
                         backdropFilter: "blur(24px)",
                         WebkitBackdropFilter: "blur(24px)",
-                        boxShadow:
-                            "0 0 60px rgba(99,102,241,0.12), 0 32px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+                        boxShadow: "0 0 60px rgba(99,102,241,0.12), 0 32px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
                     }}
                 >
-                    {/* Brand */}
                     <div className="flex flex-col items-center mb-8">
                         <div
                             className="flex h-14 w-14 items-center justify-center rounded-2xl mb-4"
@@ -108,38 +102,23 @@ function LoginContent() {
                         >
                             <Sparkles className="h-7 w-7 text-white" />
                         </div>
-                        <h1 className="text-2xl font-bold text-white tracking-tight">
-                            ImobiCRM
-                        </h1>
-                        <p className="text-sm text-slate-400 mt-1">
-                            Entre com a sua conta para continuar
-                        </p>
+                        <h1 className="text-2xl font-bold text-white tracking-tight">ImobiCRM</h1>
+                        <p className="text-sm text-slate-400 mt-1">Entre na sua conta para continuar</p>
                     </div>
 
-                    {/* Error alert */}
                     {error && (
-                        <div
-                            className="mb-5 rounded-xl px-4 py-3 flex items-start gap-3"
-                            style={{
-                                background: "rgba(239,68,68,0.08)",
-                                border: "1px solid rgba(239,68,68,0.2)",
-                            }}
-                        >
+                        <div className="mb-5 rounded-xl px-4 py-3 flex items-start gap-3" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
                             <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
                             <p className="text-sm text-red-400">{error}</p>
                         </div>
                     )}
 
-                    {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                         <div className="space-y-1.5">
-                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                E-mail
-                            </label>
+                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">E-mail</label>
                             <div className="relative">
                                 <Mail className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                                 <input
-                                    id="email"
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
@@ -151,13 +130,10 @@ function LoginContent() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                Senha
-                            </label>
+                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Senha</label>
                             <div className="relative">
                                 <Lock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                                 <input
-                                    id="password"
                                     type={showPass ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
@@ -178,9 +154,19 @@ function LoginContent() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="btn-brand w-full justify-center mt-2 disabled:opacity-60"
+                            className="btn-brand w-full justify-center mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                            {loading ? "Entrando..." : "Entrar"}
+                            {loading ? (
+                                <span className="flex items-center gap-2">
+                                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                                    Entrando...
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-2">
+                                    <LogIn className="h-4 w-4" />
+                                    Entrar
+                                </span>
+                            )}
                         </button>
                     </form>
 
@@ -197,10 +183,17 @@ function LoginContent() {
     );
 }
 
-// Página principal envolta em Suspense
+// 2. Export default com Suspense Boundary
 export default function LoginPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-[#020617] flex items-center justify-center text-white text-center">Carregando...</div>}>
+        <Suspense fallback={
+            <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+                <div className="text-white text-center">
+                    <div className="h-8 w-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <p className="text-sm text-slate-400">Carregando portal...</p>
+                </div>
+            </div>
+        }>
             <LoginContent />
         </Suspense>
     );
