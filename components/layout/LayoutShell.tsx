@@ -2,12 +2,10 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-// Usando o alias @/ que ignora caminhos relativos e foca na raiz do projeto
-import { DesktopSidebar, MobileSidebar } from "@/components/sidebar";
-import { SidebarProvider, useSidebar } from "@/components/providers/SidebarProvider";
-import { Menu, Bell } from "lucide-react";
-
-export function LayoutShell({ children }: { children: React.ReactNode }) {
+// Como o Sidebar.tsx está na mesma pasta que o LayoutShell.tsx, o import é assim:
+import { DesktopSidebar, MobileSidebar } from "./Sidebar";
+import { SidebarProvider, useSidebar } from "../providers/SidebarProvider";
+import { Menu, Bell } from "lucide-react"; export function LayoutShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const isLoginPage = pathname === "/login";
 
