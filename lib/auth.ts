@@ -1,28 +1,8 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { getServerSession } from "next-auth";
-
-// -----------------------------------------------------------------------
-// Mock users — replace with `prisma.user.findUnique()` in production
-// -----------------------------------------------------------------------
-const MOCK_USERS = [
-    {
-        id: "user_001",
-        name: "Carlos Admin",
-        email: "admin@imobicrm.com",
-        password: "123456",
-        role: "GERENTE",
-        tenantId: "tenant_001",
-    },
-    {
-        id: "user_002",
-        name: "Ana Corretora",
-        email: "ana@imobicrm.com",
-        password: "123456",
-        role: "CORRETOR",
-        tenantId: "tenant_001",
-    },
-];
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 // -----------------------------------------------------------------------
 // NextAuth configuration
@@ -51,26 +31,22 @@ export const authOptions: NextAuthOptions = {
             async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) return null;
 
-                // --- PRODUCTION TODO ---
-                // const user = await prisma.user.findUnique({
-                //   where: { email: credentials.email },
-                // });
-                // if (!user) return null;
-                // const valid = await bcrypt.compare(credentials.password, user.passwordHash);
-                // if (!valid) return null;
-                // return { id: user.id, name: user.name, email: user.email, role: user.role, tenantId: user.tenantId };
-
-                const user = MOCK_USERS.find(
-                    (u) =>
-                        u.email === credentials.email &&
-                        u.password === credentials.password
-                );
+                // 1. Busca o usuário no banco pelo e-mail
+                const user = await prisma.user.findUnique({
+                    where: { email: credentials.email },
+                });
 
                 if (!user) return null;
 
+                // 2. Compara a senha enviada com o hash do banco
+                const isValid = await bcrypt.compare(credentials.password, user.senha);
+
+                if (!isValid) return null;
+
+                // 3. Retorna os dados que irão para o JWT
                 return {
                     id: user.id,
-                    name: user.name,
+                    name: user.nome,
                     email: user.email,
                     role: user.role,
                     tenantId: user.tenantId,
