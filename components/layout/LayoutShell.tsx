@@ -2,11 +2,10 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-// Ajustamos o import para garantir que ele encontre o arquivo sidebar.tsx na pasta pai
-import { DesktopSidebar, MobileSidebar } from "../sidebar";
-import { SidebarProvider, useSidebar } from "../providers/SidebarProvider";
+// Tentamos o import com S maiúsculo, que é o padrão comum de componentes
+import { DesktopSidebar, MobileSidebar } from "@/components/Sidebar";
+import { SidebarProvider, useSidebar } from "@/components/providers/SidebarProvider";
 import { Menu, Bell } from "lucide-react";
-
 export function LayoutShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const isLoginPage = pathname === "/login";
