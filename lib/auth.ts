@@ -46,6 +46,13 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
+        // Callback de redirecionamento para evitar o loop de callbackUrl
+        async redirect({ url, baseUrl }) {
+            // Se o sistema tentar te mandar para o login estando logado, manda para a raiz
+            if (url.includes("/login")) return baseUrl;
+            // Garante que o redirecionamento seja sempre para o seu próprio domínio
+            return url.startsWith(baseUrl) ? url : baseUrl;
+        },
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id;
