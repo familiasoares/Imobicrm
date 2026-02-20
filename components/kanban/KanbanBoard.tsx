@@ -1,13 +1,12 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
-import { Kanban, GripVertical, User2, ChevronDown } from "lucide-react";
+import { Kanban, GripVertical, User2, ChevronDown, Sparkles } from "lucide-react";
 import { updateLeadStatus } from "@/app/actions/lead.actions";
 import { useModal, type LeadForModal } from "@/components/providers/ModalProvider";
 
 // -----------------------------------------------------------------------
-// Local types — mirrors Prisma Lead shape without importing @prisma/client
-// (avoids IDE resolution issues before first prisma generate in the session)
+// Tipagem e Cores Padronizadas (Foco em Cyan e Tons Profissionais)
 // -----------------------------------------------------------------------
 type LeadStatus =
     | "NOVO_LEAD" | "EM_ATENDIMENTO" | "VISITA"
@@ -15,8 +14,6 @@ type LeadStatus =
 
 type Lead = {
     id: string;
-    tenantId: string;
-    userId: string | null;
     nome: string;
     telefone: string;
     ddd: string;
@@ -24,265 +21,154 @@ type Lead = {
     interesse: string;
     status: LeadStatus;
     isArquivado: boolean;
-    criadoEm: Date;
     updatedAt: Date;
 };
-type LeadWithCorretor = Lead & {
-    corretor?: { id: string; nome: string; email: string } | null;
-};
 
-// -----------------------------------------------------------------------
-// Kanban column definitions — order matches the funnel
-// -----------------------------------------------------------------------
+// Paleta focada no seu branding: Majoritariamente Preto e Cyan
 const COLUMNS: { id: LeadStatus; label: string; color: string }[] = [
-    { id: "NOVO_LEAD", label: "Novo Lead", color: "#6366f1" },
-    { id: "EM_ATENDIMENTO", label: "Em Atendimento", color: "#3b82f6" },
-    { id: "VISITA", label: "Visita", color: "#8b5cf6" },
-    { id: "AGENDAMENTO", label: "Agendamento", color: "#f59e0b" },
-    { id: "PROPOSTA", label: "Proposta", color: "#ec4899" },
-    { id: "VENDA_FECHADA", label: "Venda Fechada", color: "#10b981" },
-    { id: "VENDA_PERDIDA", label: "Venda Perdida", color: "#ef4444" },
+    { id: "NOVO_LEAD", label: "Novo Lead", color: "#06b6d4" }, // Cyan
+    { id: "EM_ATENDIMENTO", label: "Atendimento", color: "#22d3ee" }, // Cyan Light
+    { id: "VISITA", label: "Visita", color: "#0891b2" }, // Cyan Dark
+    { id: "AGENDAMENTO", label: "Agendamento", color: "#3b82f6" }, // Blue
+    { id: "PROPOSTA", label: "Proposta", color: "#8b5cf6" }, // Purple
+    { id: "VENDA_FECHADA", label: "Venda Fechada", color: "#10b981" }, // Green
+    { id: "VENDA_PERDIDA", label: "Venda Perdida", color: "#ef4444" }, // Red
 ];
 
-const DEFAULT_VISIBLE: LeadStatus[] = [
-    "NOVO_LEAD", "EM_ATENDIMENTO", "VISITA", "AGENDAMENTO", "PROPOSTA",
-];
+const DEFAULT_VISIBLE: LeadStatus[] = ["NOVO_LEAD", "EM_ATENDIMENTO", "VISITA", "AGENDAMENTO", "PROPOSTA"];
 
 // -----------------------------------------------------------------------
-// Lead Card — click to edit, drag to move
+// Lead Card - Toque Amigável e Visual Cyan
 // -----------------------------------------------------------------------
-function LeadCard({
-    lead,
-    onDragStart,
-    onEdit,
-}: {
-    lead: Lead;
-    onDragStart: (e: React.DragEvent, leadId: string) => void;
-    onEdit: (lead: Lead) => void;
-}) {
+function LeadCard({ lead, onDragStart, onEdit }: { lead: Lead; onDragStart: (e: React.DragEvent, leadId: string) => void; onEdit: (lead: Lead) => void }) {
     return (
         <div
             draggable
             onDragStart={(e) => onDragStart(e, lead.id)}
             onClick={() => onEdit(lead)}
-            className="rounded-xl border cursor-pointer select-none transition-all hover:-translate-y-0.5 hover:shadow-lg group"
-            style={{
-                background: "rgba(15,23,42,0.7)",
-                borderColor: "rgba(255,255,255,0.07)",
-                backdropFilter: "blur(8px)",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
-            }}
-            title="Clique para editar · Arraste para mover"
+            className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 cursor-pointer transition-all hover:border-cyan-500/50 hover:bg-white/[0.04] group shadow-lg"
         >
-            <div className="px-3 py-3 space-y-2">
-                {/* Drag handle + name */}
-                <div className="flex items-start gap-2">
-                    <GripVertical className="h-4 w-4 text-slate-600 flex-shrink-0 mt-0.5 group-hover:text-slate-400 transition-colors" />
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-200 truncate">{lead.nome}</p>
-                        <p className="text-[11px] text-slate-500 truncate">{lead.telefone}</p>
-                    </div>
+            <div className="flex items-start gap-2">
+                <GripVertical className="h-4 w-4 text-slate-600 mt-0.5 group-hover:text-cyan-400 transition-colors" />
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-100 truncate">{lead.nome}</p>
+                    <p className="text-[11px] text-cyan-500/80 font-medium">{lead.telefone}</p>
                 </div>
-                {/* Metadata pills */}
-                <div className="flex flex-wrap gap-1.5 pl-6">
-                    <span className="rounded-md bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-slate-400">{lead.cidade}</span>
-                    <span className="rounded-md bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-slate-400">{lead.interesse}</span>
-                </div>
-                <p className="pl-6 text-[10px] text-slate-600">
-                    {new Date(lead.updatedAt).toLocaleDateString("pt-BR")}
-                </p>
+            </div>
+            <div className="flex flex-wrap gap-1 mt-3 pl-6">
+                <span className="rounded bg-cyan-500/10 px-1.5 py-0.5 text-[9px] font-bold text-cyan-400 uppercase tracking-tight border border-cyan-500/20">
+                    {lead.interesse}
+                </span>
+            </div>
+            <div className="mt-2 pl-6 flex justify-between items-center text-[9px] text-slate-500">
+                <span>{lead.cidade}</span>
+                <span>{new Date(lead.updatedAt).toLocaleDateString("pt-BR")}</span>
             </div>
         </div>
     );
 }
 
 // -----------------------------------------------------------------------
-// Column
+// Column - Largura Fixa no Mobile para permitir Scroll
 // -----------------------------------------------------------------------
-function KanbanColumn({
-    colDef, leads, onDragStart, onDrop, onDragOver, dragOverColumn, onEdit,
-}: {
-    colDef: (typeof COLUMNS)[0];
-    leads: Lead[];
-    onDragStart: (e: React.DragEvent, leadId: string) => void;
-    onDrop: (e: React.DragEvent, status: LeadStatus) => void;
-    onDragOver: (e: React.DragEvent, status: LeadStatus) => void;
-    dragOverColumn: LeadStatus | null;
-    onEdit: (lead: Lead) => void;
-}) {
+function KanbanColumn({ colDef, leads, onDragStart, onDrop, onDragOver, dragOverColumn, onEdit }: any) {
     const isTarget = dragOverColumn === colDef.id;
 
     return (
         <div
-            className="flex flex-col min-w-[220px] w-[220px] flex-shrink-0"
+            className="flex flex-col w-[280px] md:w-[300px] shrink-0 snap-center"
             onDragOver={(e) => onDragOver(e, colDef.id)}
             onDrop={(e) => onDrop(e, colDef.id)}
         >
-            {/* Column header */}
             <div
-                className="flex items-center justify-between rounded-xl px-3 py-2.5 mb-3"
-                style={{
-                    background: `linear-gradient(135deg, ${colDef.color}22 0%, ${colDef.color}11 100%)`,
-                    border: `1px solid ${colDef.color}33`,
-                }}
+                className="flex items-center justify-between p-3 rounded-t-xl border-t border-x border-white/[0.06] bg-[#0d0d0d]"
+                style={{ borderTopColor: isTarget ? '#06b6d4' : `${colDef.color}44` }}
             >
                 <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                        style={{ background: colDef.color, boxShadow: `0 0 6px ${colDef.color}` }} />
-                    <p className="text-xs font-semibold text-slate-200">{colDef.label}</p>
+                    <div className="h-2 w-2 rounded-full" style={{ background: colDef.color, boxShadow: `0 0 8px ${colDef.color}` }} />
+                    <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">{colDef.label}</span>
                 </div>
-                <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
-                    style={{ background: `${colDef.color}33`, color: colDef.color }}>
-                    {leads.length}
-                </span>
+                <span className="text-[10px] font-bold text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">{leads.length}</span>
             </div>
 
-            {/* Drop zone */}
             <div
-                className="flex-1 space-y-2 rounded-xl p-2 min-h-[120px] transition-all duration-150"
-                style={{
-                    background: isTarget ? `${colDef.color}12` : "rgba(255,255,255,0.01)",
-                    border: isTarget ? `1px dashed ${colDef.color}66` : "1px dashed transparent",
-                }}
+                className={`flex-1 space-y-3 p-3 border border-white/[0.06] bg-[#070707]/50 min-h-[150px] transition-all
+                ${isTarget ? "bg-cyan-500/5 border-cyan-500/30" : ""}`}
             >
-                {leads.length === 0 ? (
-                    <div className="flex h-20 items-center justify-center">
-                        <p className="text-[11px] text-slate-700">Solte aqui</p>
+                {leads.map((lead: any) => (
+                    <LeadCard key={lead.id} lead={lead} onDragStart={onDragStart} onEdit={onEdit} />
+                ))}
+                {leads.length === 0 && (
+                    <div className="h-20 flex items-center justify-center border border-dashed border-white/5 rounded-xl text-[10px] text-slate-700">
+                        Solte aqui
                     </div>
-                ) : (
-                    leads.map((lead) => (
-                        <LeadCard key={lead.id} lead={lead} onDragStart={onDragStart} onEdit={onEdit} />
-                    ))
                 )}
             </div>
         </div>
     );
 }
 
-// -----------------------------------------------------------------------
-// KanbanBoard — main Client Component
-// -----------------------------------------------------------------------
-export function KanbanBoard({ initialLeads }: { initialLeads: LeadWithCorretor[] }) {
-    const [leads, setLeads] = useState<LeadWithCorretor[]>(initialLeads);
+export function KanbanBoard({ initialLeads }: { initialLeads: any[] }) {
+    const [leads, setLeads] = useState(initialLeads);
     const [dragId, setDragId] = useState<string | null>(null);
     const [dragOverCol, setDragOverCol] = useState<LeadStatus | null>(null);
     const [isPending, startTransition] = useTransition();
     const [showFinal, setShowFinal] = useState(false);
     const { openEdit } = useModal();
 
-    // ── KEY FIX ──────────────────────────────────────────────────────────
-    // useState(initialLeads) only reads the prop on first mount.
-    // When router.refresh() in the modal triggers the Server Component to
-    // re-fetch from the DB, React passes updated initialLeads down here.
-    // This useEffect detects that change and re-syncs the local state,
-    // causing the board to reflect the new lead without a full page reload.
-    useEffect(() => {
-        setLeads(initialLeads);
-    }, [initialLeads]);
-    // ─────────────────────────────────────────────────────────────────────
+    useEffect(() => { setLeads(initialLeads); }, [initialLeads]);
 
-    const visibleColumns = showFinal
-        ? COLUMNS
-        : COLUMNS.filter(
-            (c) => DEFAULT_VISIBLE.includes(c.id) || leads.some((l) => l.status === c.id)
-        );
+    const visibleColumns = showFinal ? COLUMNS : COLUMNS.filter(c => DEFAULT_VISIBLE.includes(c.id) || leads.some(l => l.status === c.id));
 
-    // ---- Drag handlers ----
-    const handleDragStart = (e: React.DragEvent, leadId: string) => {
-        setDragId(leadId);
-        e.dataTransfer.effectAllowed = "move";
-    };
-    const handleDragOver = (e: React.DragEvent, status: LeadStatus) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        setDragOverCol(status);
-    };
+    const handleDragStart = (e: React.DragEvent, leadId: string) => { e.dataTransfer.effectAllowed = "move"; setDragId(leadId); };
+    const handleDragOver = (e: React.DragEvent, status: LeadStatus) => { e.preventDefault(); setDragOverCol(status); };
+
     const handleDrop = (e: React.DragEvent, newStatus: LeadStatus) => {
         e.preventDefault();
         setDragOverCol(null);
         if (!dragId) return;
-        const lead = leads.find((l) => l.id === dragId);
-        if (!lead || lead.status === newStatus) { setDragId(null); return; }
+        const lead = leads.find(l => l.id === dragId);
+        if (!lead || lead.status === newStatus) return;
 
-        // Optimistic update
-        setLeads((prev) => prev.map((l) =>
-            l.id === dragId ? { ...l, status: newStatus, updatedAt: new Date() } : l
-        ));
-        setDragId(null);
+        setLeads((prev: any[]) => prev.map(l => l.id === dragId ? { ...l, status: newStatus, updatedAt: new Date() } : l));
 
         startTransition(async () => {
-            try {
-                await updateLeadStatus(dragId, newStatus);
-            } catch (err) {
-                console.error("Falha ao actualizar status:", err);
-                // Rollback
-                setLeads((prev) => prev.map((l) =>
-                    l.id === dragId ? { ...l, status: lead.status, updatedAt: lead.updatedAt } : l
-                ));
-            }
+            try { await updateLeadStatus(dragId, newStatus); }
+            catch (err) { setLeads(initialLeads); }
         });
     };
 
-    // ---- Edit handler — opens EditLeadModal ----
-    const handleEdit = (lead: Lead) => {
-        const forModal: LeadForModal = {
-            id: lead.id,
-            nome: lead.nome,
-            telefone: lead.telefone,
-            ddd: lead.ddd,
-            cidade: lead.cidade,
-            interesse: lead.interesse,
-            status: lead.status,
-            isArquivado: lead.isArquivado,
-        };
-        openEdit(forModal);
-    };
-
-    const totalLeads = leads.length;
-    const closedLeads = leads.filter((l) => l.status === "VENDA_FECHADA").length;
+    const handleEdit = (lead: any) => { openEdit(lead); };
 
     return (
-        <div className="flex flex-col h-full animate-fade-in">
-
-            {/* ---- Page header ---- */}
-            <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <div className="flex flex-col h-[calc(100vh-140px)]">
+            {/* Header do Kanban */}
+            <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Kanban className="h-5 w-5 text-indigo-400" />
-                        Kanban — Funil de Vendas
+                    <h1 className="text-xl font-black text-white flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-cyan-400" />
+                        FUNIL DE VENDAS
                     </h1>
-                    <p className="text-sm text-slate-400 mt-0.5">
-                        {totalLeads} leads · {closedLeads} vendas fechadas
-                        {isPending && (
-                            <span className="ml-2 text-indigo-400 text-xs animate-pulse">Salvando…</span>
-                        )}
+                    <p className="text-[11px] text-slate-500 font-medium uppercase tracking-widest">
+                        {leads.length} Leads Ativos {isPending && "• Salvando..."}
                     </p>
                 </div>
-                <button onClick={() => setShowFinal((v) => !v)} className="btn-ghost border border-white/[0.08] text-xs">
-                    <ChevronDown className={`h-4 w-4 transition-transform ${showFinal ? "rotate-180" : ""}`} />
-                    {showFinal ? "Ocultar" : "Mostrar"} Venda Fechada / Perdida
+                <button
+                    onClick={() => setShowFinal(!showFinal)}
+                    className="text-[10px] font-bold text-cyan-400 border border-cyan-500/30 px-3 py-1.5 rounded-lg bg-cyan-500/5 hover:bg-cyan-500/10 transition-all uppercase tracking-tighter"
+                >
+                    {showFinal ? "Ocultar Finalizados" : "Ver Funil Completo"}
                 </button>
             </div>
 
-            {/* ---- Empty state ---- */}
-            {leads.length === 0 && (
-                <div className="glass-card flex flex-col items-center justify-center py-20 text-center">
-                    <User2 className="h-10 w-10 text-slate-700 mb-3" />
-                    <p className="font-semibold text-slate-400">Nenhum lead encontrado</p>
-                    <p className="text-sm text-slate-600 mt-1">
-                        Clique em <strong>"Novo Lead"</strong> na barra superior para criar o primeiro.
-                    </p>
-                </div>
-            )}
-
-            {/* ---- Board — horizontal scroll ---- */}
-            {leads.length > 0 && (
-                <div className="flex gap-4 overflow-x-auto pb-4 flex-1">
+            {/* AREA DO QUADRO - O segredo da rolagem está aqui */}
+            <div className="flex-1 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-white/10 pb-4">
+                <div className="flex gap-4 h-full min-w-max px-1">
                     {visibleColumns.map((col) => (
                         <KanbanColumn
                             key={col.id}
                             colDef={col}
-                            leads={leads.filter((l) => l.status === col.id)}
+                            leads={leads.filter((l: any) => l.status === col.id)}
                             onDragStart={handleDragStart}
                             onDrop={handleDrop}
                             onDragOver={handleDragOver}
@@ -291,7 +177,7 @@ export function KanbanBoard({ initialLeads }: { initialLeads: LeadWithCorretor[]
                         />
                     ))}
                 </div>
-            )}
+            </div>
         </div>
     );
 }
