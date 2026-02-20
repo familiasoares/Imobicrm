@@ -15,12 +15,10 @@ import {
     LogOut,
     ChevronRight,
     Sparkles,
+    X,
 } from "lucide-react";
 import { useSidebar, NavItemId } from "@/components/providers/SidebarProvider";
 
-// -----------------------------------------------------------------------
-// Nav items definition
-// -----------------------------------------------------------------------
 type NavSection = {
     label?: string;
     items: {
@@ -51,24 +49,20 @@ const navSections: NavSection[] = [
     },
 ];
 
-// Role display labels (keeps "GERENTE" → "Gerente")
 const ROLE_LABELS: Record<string, string> = {
     ADMIN_SAAS: "Admin SaaS",
     GERENTE: "Gerente",
     CORRETOR: "Corretor",
 };
 
-// -----------------------------------------------------------------------
-// User avatar: first initial from name, falls back to email initial
-// -----------------------------------------------------------------------
 function getInitial(name?: string | null, email?: string | null): string {
     return (name?.[0] ?? email?.[0] ?? "U").toUpperCase();
 }
 
 // -----------------------------------------------------------------------
-// Sidebar content (shared between desktop and mobile drawer)
+// Sidebar Content
 // -----------------------------------------------------------------------
-function SidebarContent() {
+function SidebarContent({ onClose }: { onClose?: () => void }) {
     const { activePage, navigate } = useSidebar();
     const pathname = usePathname();
     const { data: session, status } = useSession();
@@ -78,60 +72,55 @@ function SidebarContent() {
     const roleLabel = ROLE_LABELS[user?.role ?? ""] ?? user?.role ?? "—";
     const displayName = user?.name ?? user?.email ?? "Utilizador";
 
+    const handleNavigate = (id: NavItemId) => {
+        navigate(id);
+        if (onClose) onClose(); // Fecha no mobile após clicar
+    };
+
     return (
-        <div className="flex flex-col h-full">
-            {/* ---- Logo / Brand ---- */}
-            <div className="px-5 py-5 border-b border-white/[0.06]">
+        <div className="flex flex-col h-full bg-[#0a0a0a] border-r border-white/[0.06]">
+            {/* Header */}
+            <div className="px-6 py-6 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div
-                        className="flex h-9 w-9 items-center justify-center rounded-xl animate-pulse-glow"
-                        style={{
-                            background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-                            boxShadow: "0 0 20px rgba(99,102,241,0.45)",
-                        }}
-                    >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
                         <Sparkles className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                        <p className="text-sm font-bold text-white tracking-wide leading-none">
-                            ImobiCRM
-                        </p>
-                        <p className="text-[10px] text-slate-500 mt-0.5 font-medium tracking-widest uppercase">
-                            Pro
-                        </p>
+                        <p className="text-sm font-bold text-white tracking-wide">ImobiCRM</p>
+                        <p className="text-[10px] text-cyan-500 font-bold uppercase tracking-widest">Pro</p>
                     </div>
                 </div>
+                {/* Botão fechar (visível apenas no mobile via CSS) */}
+                <button onClick={onClose} className="lg:hidden text-slate-500 hover:text-white">
+                    <X className="h-5 w-5" />
+                </button>
             </div>
 
-            {/* ---- Navigation ---- */}
-            <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+            {/* Nav */}
+            <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
                 {navSections.map((section) => (
                     <div key={section.label}>
                         {section.label && (
-                            <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+                            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-slate-600">
                                 {section.label}
                             </p>
                         )}
-                        <ul className="space-y-0.5">
+                        <ul className="space-y-1">
                             {section.items.map((item) => {
                                 const isActive = activePage === item.id || pathname === item.href;
                                 return (
                                     <li key={item.id}>
                                         <Link
                                             href={item.href}
-                                            className={`nav-item group ${isActive ? "active" : ""}`}
-                                            onClick={() => navigate(item.id)}
+                                            onClick={() => handleNavigate(item.id)}
+                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group
+                                                ${isActive
+                                                    ? "bg-cyan-500/10 text-cyan-400 shadow-[inset_0_0_10px_rgba(6,182,212,0.05)]"
+                                                    : "text-slate-400 hover:bg-white/[0.03] hover:text-slate-200"}`}
                                         >
-                                            <item.icon
-                                                className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive
-                                                        ? "text-indigo-400"
-                                                        : "text-slate-500 group-hover:text-slate-300"
-                                                    }`}
-                                            />
+                                            <item.icon className={`h-4 w-4 ${isActive ? "text-cyan-400" : "text-slate-500 group-hover:text-slate-300"}`} />
                                             <span className="flex-1">{item.label}</span>
-                                            {isActive && (
-                                                <ChevronRight className="h-3.5 w-3.5 text-indigo-400 opacity-70" />
-                                            )}
+                                            {isActive && <ChevronRight className="h-3 w-3" />}
                                         </Link>
                                     </li>
                                 );
@@ -141,42 +130,20 @@ function SidebarContent() {
                 ))}
             </nav>
 
-            {/* ---- Footer: Live session user + Logout ---- */}
-            <div className="border-t border-white/[0.06] px-3 py-4 space-y-1">
-                {/* User card — shows real session data */}
-                <div className="glass-card flex items-center gap-3 px-3 py-2.5 mb-2">
-                    {/* Avatar with initial */}
-                    <div
-                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                        style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
-                    >
-                        {status === "loading" ? (
-                            <div className="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent" />
-                        ) : (
-                            initial
-                        )}
+            {/* Footer */}
+            <div className="p-4 border-t border-white/[0.06] space-y-2">
+                <div className="flex items-center gap-3 p-2 rounded-xl bg-white/[0.02] border border-white/[0.05]">
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-700 flex items-center justify-center text-xs font-bold text-white">
+                        {status === "loading" ? "..." : initial}
                     </div>
                     <div className="flex-1 min-w-0">
-                        {status === "loading" ? (
-                            <>
-                                <div className="h-2.5 w-20 animate-pulse rounded bg-white/10 mb-1.5" />
-                                <div className="h-2 w-28 animate-pulse rounded bg-white/[0.06]" />
-                            </>
-                        ) : (
-                            <>
-                                <p className="text-xs font-semibold text-slate-200 truncate">
-                                    {roleLabel}
-                                </p>
-                                <p className="text-[10px] text-slate-500 truncate">{displayName}</p>
-                            </>
-                        )}
+                        <p className="text-xs font-bold text-slate-200 truncate">{roleLabel}</p>
+                        <p className="text-[10px] text-slate-500 truncate">{displayName}</p>
                     </div>
                 </div>
-
-                {/* Logout button */}
                 <button
-                    className="nav-item text-red-400/80 hover:bg-red-500/10 hover:text-red-400 w-full"
                     onClick={() => signOut({ callbackUrl: "/login" })}
+                    className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
                 >
                     <LogOut className="h-4 w-4" />
                     Sair
@@ -187,38 +154,35 @@ function SidebarContent() {
 }
 
 // -----------------------------------------------------------------------
-// Desktop Sidebar (always visible ≥ lg)
+// Main Sidebar Exports
 // -----------------------------------------------------------------------
+
 export function DesktopSidebar() {
     return (
-        <aside className="sidebar-panel hidden lg:flex">
+        <aside className="hidden lg:flex flex-col w-64 h-screen sticky top-0">
             <SidebarContent />
         </aside>
     );
 }
 
-// -----------------------------------------------------------------------
-// Mobile Drawer + Overlay
-// -----------------------------------------------------------------------
 export function MobileSidebar() {
     const { isOpen, close } = useSidebar();
 
-    if (!isOpen) return null;
-
     return (
         <>
+            {/* Overlay: Suave com transição de opacidade */}
             <div
-                className="mobile-overlay lg:hidden"
+                className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden
+                ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
                 onClick={close}
-                aria-hidden="true"
             />
+
+            {/* Drawer: Desliza da esquerda sem destruir o componente */}
             <aside
-                className="sidebar-panel lg:hidden animate-slide-in-left"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Menu de navegação"
+                className={`fixed inset-y-0 left-0 z-50 w-72 bg-black transition-transform duration-300 ease-in-out lg:hidden
+                ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
             >
-                <SidebarContent />
+                <SidebarContent onClose={close} />
             </aside>
         </>
     );

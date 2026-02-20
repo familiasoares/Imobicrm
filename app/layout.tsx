@@ -9,8 +9,7 @@ import { EditLeadModal } from "@/components/leads/EditLeadModal";
 
 export const metadata: Metadata = {
     title: "ImobiCRM — Gestão de Leads Imobiliários",
-    description:
-        "CRM SaaS multi-tenant para gestão de leads imobiliários. Controle seu funil de vendas de forma inteligente.",
+    description: "CRM SaaS multi-tenant para gestão de leads imobiliários.",
 };
 
 export default function RootLayout({
@@ -24,17 +23,7 @@ export default function RootLayout({
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
             </head>
-            <body>
-                {/*
-         * Provider nesting order (outer → inner):
-         *   NextAuthSessionProvider  — makes useSession() available everywhere
-         *   ModalProvider            — global openCreate/openEdit/close state
-         *   ToastProvider            — global toast() notifications
-         *   LayoutShell              — conditional sidebar/topbar based on route
-         *
-         * CreateLeadModal + EditLeadModal are rendered here (at root level)
-         * so they stack on top of everything including the sidebar.
-         */}
+            <body className="bg-black">
                 <NextAuthSessionProvider>
                     <ModalProvider>
                         <ToastProvider>
@@ -42,7 +31,7 @@ export default function RootLayout({
                                 {children}
                             </LayoutShell>
 
-                            {/* Global modals — rendered outside LayoutShell so they overlay the sidebar */}
+                            {/* Modais Globais */}
                             <CreateLeadModal />
                             <EditLeadModal />
                         </ToastProvider>

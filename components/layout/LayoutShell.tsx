@@ -1,57 +1,70 @@
 "use client";
 
+import React from "react";
 import { usePathname } from "next/navigation";
-import { SidebarProvider } from "@/components/providers/SidebarProvider";
-import { DesktopSidebar, MobileSidebar } from "@/components/layout/Sidebar";
-import { Topbar } from "@/components/layout/Topbar";
-import { SubscriptionBanner } from "@/components/layout/SubscriptionBanner";
+import { DesktopSidebar, MobileSidebar } from "@/components/Sidebar";
+import { SidebarProvider, useSidebar } from "@/components/providers/SidebarProvider";
+import { Menu, Bell } from "lucide-react";
 
-// Pages that must render WITHOUT the sidebar/topbar shell
-const AUTH_PATHS = ["/login"];
-
-/**
- * LayoutShell
- *
- * Client Component that conditionally wraps children with the full CRM
- * sidebar/topbar layout or renders them bare (for /login and other auth pages).
- *
- * This avoids having to duplicate the root <html>/<body> structure
- * into separate route-group layouts.
- */
 export function LayoutShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const isAuthPage = AUTH_PATHS.some((p) => pathname.startsWith(p));
+    const isLoginPage = pathname === "/login";
 
-    // ---- Bare render for auth pages ----
-    if (isAuthPage) {
-        return <>{children}</>;
-    }
+    // Se for login, não renderiza sidebar nem estrutura de dashboard
+    if (isLoginPage) return <main className="bg-black min-h-screen">{children}</main>;
 
-    // ---- Full CRM shell ----
     return (
         <SidebarProvider>
-            {/* Global overdue banner — self-hides when cookie absent */}
-            <SubscriptionBanner />
+            <div className="flex min-h-screen bg-black text-slate-200">
+                {/* Desktop Sidebar: Visível apenas em telas grandes (lg) */}
+                <DesktopSidebar />
 
-            {/* Desktop sidebar (fixed left) */}
-            <DesktopSidebar />
+                {/* Mobile Sidebar: Menu que desliza no celular */}
+                <MobileSidebar />
 
-            {/* Mobile drawer */}
-            <MobileSidebar />
+                {/* Área de Conteúdo Principal */}
+                <div className="flex flex-col flex-1 min-w-0">
 
-            {/* Main area: offset to the right of the sidebar */}
-            <div
-                className="flex flex-col min-h-screen transition-all duration-300"
-                style={{ marginLeft: "var(--sidebar-width)" }}
-            >
-                <Topbar />
-                <main
-                    className="flex-1 overflow-y-auto p-6"
-                    style={{ paddingTop: "calc(64px + 1.5rem)" }}
-                >
-                    {children}
-                </main>
+                    {/* BARRA SUPERIOR MOBILE (Aparece apenas no celular/tablet) */}
+                    <header className="flex items-center justify-between px-4 h-16 border-b border-white/[0.06] lg:hidden bg-[#0a0a0a] sticky top-0 z-30">
+                        <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                                <span className="text-white text-xs font-bold">I</span>
+                            </div>
+                            <span className="text-sm font-bold text-white tracking-tight">ImobiCRM</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button className="p-2 text-slate-400">
+                                <Bell className="h-5 w-5" />
+                            </button>
+                            {/* Botão que abre a Sidebar no celular */}
+                            <MobileMenuTrigger />
+                        </div>
+                    </header>
+
+                    {/* Conteúdo da Página */}
+                    <main className="flex-1 overflow-x-hidden p-4 md:p-8">
+                        <div className="max-w-7xl mx-auto">
+                            {children}
+                        </div>
+                    </main>
+                </div>
             </div>
         </SidebarProvider>
+    );
+}
+
+// Botão separado para evitar re-renderizações desnecessárias
+function MobileMenuTrigger() {
+    const { open } = useSidebar();
+    return (
+        <button
+            onClick={open}
+            className="p-2 rounded-lg bg-white/[0.05] border border-white/[0.1] text-cyan-400 active:scale-95 transition-transform"
+            aria-label="Abrir menu"
+        >
+            <Menu className="h-6 w-6" />
+        </button>
     );
 }

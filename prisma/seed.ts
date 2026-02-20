@@ -62,3 +62,16 @@ main()
     .finally(async () => {
         await prisma.$disconnect();
     });
+const tenant2 = await prisma.tenant.create({
+    data: {
+        nome: "Imobiliária Litoral",
+        users: {
+            create: {
+                nome: "Corretor VIP",
+                email: "vip@litoral.com",
+                senha: await bcrypt.hash("123456", 10),
+                role: "GERENTE",
+            },
+        },
+    },
+});
