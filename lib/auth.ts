@@ -83,3 +83,10 @@ export const authOptions: NextAuthOptions = {
 // Usage: const session = await getServerAuthSession();
 // -----------------------------------------------------------------------
 export const getServerAuthSession = () => getServerSession(authOptions);
+export const authOptions: NextAuthOptions = {
+    // ... tudo que já estava acima continua igual ...
+
+    // ADICIONE ISSO AQUI:
+    secret: process.env.NEXTAUTH_SECRET,
+    debug: process.env.NODE_ENV === "development", // Ajuda a ver erros no terminal
+};
