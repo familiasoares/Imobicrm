@@ -49,40 +49,12 @@ export const authOptions: NextAuthOptions = {
 
                 if (!isValid) return null;
 
-                // 3. Retorna os dados que irão para o JWT
+                // 3. Retorna os dados (Usamos 'as any' para o TypeScript parar de reclamar do tenantId null)
                 return {
                     id: user.id,
                     name: user.nome,
                     email: user.email,
                     role: user.role,
                     tenantId: user.tenantId,
-                };
+                } as any;
             },
-        }),
-    ],
-
-    callbacks: {
-        async jwt({ token, user }) {
-            if (user) {
-                token.id = user.id;
-                token.role = user.role;
-                token.tenantId = user.tenantId;
-            }
-            return token;
-        },
-
-        async session({ session, token }) {
-            if (session.user) {
-                session.user.id = token.id as string;
-                session.user.role = token.role as string;
-                session.user.tenantId = token.tenantId as string;
-            }
-            return session;
-        },
-    },
-};
-
-// -----------------------------------------------------------------------
-// Server-side session helper
-// -----------------------------------------------------------------------
-export const getServerAuthSession = () => getServerSession(authOptions);
