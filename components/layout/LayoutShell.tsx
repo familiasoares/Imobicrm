@@ -2,8 +2,9 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { DesktopSidebar, MobileSidebar } from "@/components/Sidebar";
-import { SidebarProvider, useSidebar } from "@/components/providers/SidebarProvider";
+// Ajustamos o import para garantir que ele encontre o arquivo sidebar.tsx na pasta pai
+import { DesktopSidebar, MobileSidebar } from "../sidebar";
+import { SidebarProvider, useSidebar } from "../providers/SidebarProvider";
 import { Menu, Bell } from "lucide-react";
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
@@ -55,7 +56,6 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     );
 }
 
-// Botão separado para evitar re-renderizações desnecessárias
 function MobileMenuTrigger() {
     const { open } = useSidebar();
     return (
