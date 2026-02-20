@@ -14,7 +14,13 @@ export const authOptions: NextAuthOptions = {
         maxAge: 30 * 24 * 60 * 60, // 30 days
     },
 
-    // Where NextAuth renders its built-in pages (we override login below)
+    // Secret for JWT encryption (Essential for Vercel/Production)
+    secret: process.env.NEXTAUTH_SECRET,
+
+    // Debug mode helps to see errors in terminal during development
+    debug: process.env.NODE_ENV === "development",
+
+    // Where NextAuth renders its built-in pages
     pages: {
         signIn: "/login",
         error: "/login",
@@ -56,7 +62,6 @@ export const authOptions: NextAuthOptions = {
     ],
 
     callbacks: {
-        // Persist custom fields from User → JWT (runs on sign-in and token refresh)
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id;
@@ -66,12 +71,11 @@ export const authOptions: NextAuthOptions = {
             return token;
         },
 
-        // Expose JWT fields on the client-readable Session object
         async session({ session, token }) {
             if (session.user) {
-                session.user.id = token.id;
-                session.user.role = token.role;
-                session.user.tenantId = token.tenantId;
+                session.user.id = token.id as string;
+                session.user.role = token.role as string;
+                session.user.tenantId = token.tenantId as string;
             }
             return session;
         },
@@ -79,14 +83,6 @@ export const authOptions: NextAuthOptions = {
 };
 
 // -----------------------------------------------------------------------
-// Server-side session helper (use in Server Components / Route Handlers)
-// Usage: const session = await getServerAuthSession();
+// Server-side session helper
 // -----------------------------------------------------------------------
 export const getServerAuthSession = () => getServerSession(authOptions);
-export const authOptions: NextAuthOptions = {
-    // ... tudo que já estava acima continua igual ...
-
-    // ADICIONE ISSO AQUI:
-    secret: process.env.NEXTAUTH_SECRET,
-    debug: process.env.NODE_ENV === "development", // Ajuda a ver erros no terminal
-};
