@@ -17,7 +17,7 @@ interface FilterDrawerProps {
     filters: FilterValues;
     onChange: (f: FilterValues) => void;
     onClear: () => void;
-    leads?: any[]; // Opcional para evitar erros
+    leads?: any[];
 }
 
 export function FilterDrawer({
@@ -33,7 +33,6 @@ export function FilterDrawer({
 
     const activeCount = Object.values(filters).filter(Boolean).length;
 
-    // Extrai apenas os valores únicos
     const uniqueDDDs = Array.from(new Set(leads.map(l => l.ddd).filter(Boolean))).sort();
     const uniqueCidades = Array.from(new Set(leads.map(l => l.cidade).filter(Boolean))).sort();
     const uniqueInteresses = Array.from(new Set(leads.map(l => l.interesse).filter(Boolean))).sort();
@@ -47,18 +46,23 @@ export function FilterDrawer({
     if (!isOpen) return null;
 
     return (
+        // 1. ANCORAGEM ABSOLUTA: flex items-center justify-center garante que o modal SEMPRE ficará no meio da tela da câmera, ignorando o fundo.
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+
+            {/* 2. Overlay fixo */}
             <div
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
                 onClick={onClose}
                 aria-hidden="true"
             />
 
+            {/* 3. Modal Blindado: overflow-hidden garante que nada vaza. max-h-[90dvh] garante que ele nunca será maior que a tela. */}
             <aside
-                className="relative w-full max-w-lg bg-[#0a0a0a] border border-cyan-500/20 rounded-2xl shadow-[0_20px_60px_-15px_rgba(6,182,212,0.3)] flex flex-col overflow-hidden animate-fade-in-up max-h-[90dvh]"
+                className="relative flex flex-col w-full max-w-lg bg-[#0a0a0a] border border-cyan-500/20 rounded-2xl shadow-[0_20px_60px_-15px_rgba(6,182,212,0.5)] animate-fade-in-up overflow-hidden"
+                style={{ maxHeight: '90dvh' }}
                 aria-label="Filtros avançados"
             >
-                {/* Header BLINDADO com shrink-0 */}
+                {/* Header (Não encolhe: shrink-0) */}
                 <div className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] bg-[#0d0d0d]">
                     <div className="flex items-center gap-2">
                         <SlidersHorizontal className="h-5 w-5 text-cyan-400" />
@@ -74,7 +78,7 @@ export function FilterDrawer({
                     </button>
                 </div>
 
-                {/* Filters body com rolagem isolada */}
+                {/* Body (Rola independentemente: flex-1 overflow-y-auto) */}
                 <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10">
 
                     <div className="rounded-xl p-3 text-xs text-slate-400 flex items-start gap-2 bg-cyan-500/5 border border-cyan-500/10">
@@ -91,7 +95,7 @@ export function FilterDrawer({
                             <select
                                 value={filters.ddd}
                                 onChange={(e) => set("ddd", e.target.value)}
-                                className="glass-input w-full bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50"
+                                className="glass-input w-full bg-[#050505] border-white/10 text-base sm:text-sm focus:border-cyan-500/50"
                             >
                                 <option value="">Todos os DDDs</option>
                                 {uniqueDDDs.map((d) => (
@@ -108,7 +112,7 @@ export function FilterDrawer({
                             <select
                                 value={filters.cidade}
                                 onChange={(e) => set("cidade", e.target.value)}
-                                className="glass-input w-full bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50"
+                                className="glass-input w-full bg-[#050505] border-white/10 text-base sm:text-sm focus:border-cyan-500/50"
                             >
                                 <option value="">Todas as Cidades</option>
                                 {uniqueCidades.map((c) => (
@@ -126,7 +130,7 @@ export function FilterDrawer({
                         <select
                             value={filters.interesse}
                             onChange={(e) => set("interesse", e.target.value)}
-                            className="glass-input w-full bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50"
+                            className="glass-input w-full bg-[#050505] border-white/10 text-base sm:text-sm focus:border-cyan-500/50"
                         >
                             <option value="">Todos os Interesses</option>
                             {uniqueInteresses.map((i) => (
@@ -147,7 +151,7 @@ export function FilterDrawer({
                                     type="date"
                                     value={filters.dataInicio}
                                     onChange={(e) => set("dataInicio", e.target.value)}
-                                    className="glass-input w-full px-3 bg-[#050505] border-white/10 [color-scheme:dark] text-sm"
+                                    className="glass-input w-full px-3 bg-[#050505] border-white/10 [color-scheme:dark] text-base sm:text-sm"
                                 />
                             </div>
                             <div>
@@ -156,14 +160,14 @@ export function FilterDrawer({
                                     type="date"
                                     value={filters.dataFim}
                                     onChange={(e) => set("dataFim", e.target.value)}
-                                    className="glass-input w-full px-3 bg-[#050505] border-white/10 [color-scheme:dark] text-sm"
+                                    className="glass-input w-full px-3 bg-[#050505] border-white/10 [color-scheme:dark] text-base sm:text-sm"
                                 />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Footer BLINDADO com shrink-0 */}
+                {/* Footer (Não encolhe: shrink-0) */}
                 <div className="shrink-0 px-6 py-5 border-t border-white/[0.06] bg-[#0d0d0d] flex gap-3">
                     <button
                         onClick={onClear}
