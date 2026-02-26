@@ -20,15 +20,6 @@ const INTERESSE_OPTIONS = [
     "Investimento",
 ];
 
-const DDD_OPTIONS = [
-    "11", "12", "13", "14", "15", "16", "17", "18", "19",
-    "21", "22", "24", "27", "28", "31", "32", "33", "34", "35", "37", "38",
-    "41", "42", "43", "44", "45", "46", "47", "48", "49", "51", "53", "54", "55",
-    "61", "62", "63", "64", "65", "66", "67", "68", "69",
-    "71", "73", "74", "75", "77", "79", "81", "82", "83", "84", "85", "86", "87", "88", "89",
-    "91", "92", "93", "94", "95", "96", "97", "98", "99",
-];
-
 type FormData = {
     nome: string;
     ddd: string;
@@ -40,7 +31,7 @@ type FormData = {
 type FormErrors = Partial<Record<keyof FormData, string>>;
 
 const EMPTY: FormData = {
-    nome: "", ddd: "11", telefone: "", cidade: "", interesse: "",
+    nome: "", ddd: "", telefone: "", cidade: "", interesse: "",
 };
 
 // -----------------------------------------------------------------------
@@ -48,12 +39,16 @@ const EMPTY: FormData = {
 // -----------------------------------------------------------------------
 function validate(data: FormData): FormErrors {
     const errors: FormErrors = {};
-    if (!data.nome.trim()) errors.nome = "Nome é obrigatório";
-    if (!data.telefone.trim()) errors.telefone = "Telefone é obrigatório";
-    if (!data.cidade.trim()) errors.cidade = "Cidade é obrigatória";
-    if (!data.interesse) errors.interesse = "Selecione um interesse";
+    if (!data.nome.trim()) errors.nome = "Nome obrigatório";
+    if (!data.ddd.trim()) errors.ddd = "Obrigatório";
+    else if (data.ddd.length < 2) errors.ddd = "Inválido";
+    if (!data.telefone.trim()) errors.telefone = "Telefone obrigatório";
+    if (!data.cidade.trim()) errors.cidade = "Cidade obrigatória";
+    if (!data.interesse) errors.interesse = "Selecione";
+
     if (data.telefone && !/^[\d\s\-().]+$/.test(data.telefone))
-        errors.telefone = "Formato inválido (apenas números, traços e parênteses)";
+        errors.telefone = "Apenas números";
+
     return errors;
 }
 
@@ -93,7 +88,6 @@ export function CreateLeadModal() {
 
         startTransition(async () => {
             try {
-                // 1. Persiste no banco + invalida cache do Next.js (revalidatePath)
                 await createLead({
                     nome: form.nome.trim(),
                     ddd: form.ddd,
@@ -102,13 +96,8 @@ export function CreateLeadModal() {
                     interesse: form.interesse,
                 });
 
-                // 2. Fecha modal e exibe toast
                 close();
                 toast("Lead criado com sucesso! 🎉", "success");
-
-                // 3. Força o Server Component do Kanban e da Lista a re-buscar do banco.
-                //    Isso passa novos `initialLeads` ao KanbanBoard, que o useEffect
-                //    recebe e aplica ao estado local — sem F5 necessário.
                 router.refresh();
             } catch (err) {
                 console.error(err);
@@ -118,10 +107,10 @@ export function CreateLeadModal() {
     };
 
     return (
-        <>
-            {/* Backdrop */}
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            {/* Backdrop escurecido */}
             <div
-                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
                 onClick={close}
                 aria-hidden="true"
             />
@@ -131,189 +120,149 @@ export function CreateLeadModal() {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="create-lead-title"
-                className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                className="relative w-full max-w-md bg-[#0a0a0a] border border-cyan-500/20 rounded-2xl p-6 sm:p-8 shadow-[0_20px_60px_-15px_rgba(6,182,212,0.3)] animate-fade-in-up"
             >
-                <div
-                    className="relative w-full max-w-md rounded-2xl p-6 sm:p-7 animate-fade-in"
-                    style={{
-                        background: "rgba(9,15,36,0.95)",
-                        border: "1px solid rgba(255,255,255,0.07)",
-                        backdropFilter: "blur(24px)",
-                        WebkitBackdropFilter: "blur(24px)",
-                        boxShadow: "0 0 60px rgba(99,102,241,0.12), 0 32px 64px rgba(0,0,0,0.6)",
-                    }}
-                >
-                    {/* Header */}
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h2
-                                id="create-lead-title"
-                                className="text-lg font-bold text-white"
-                            >
-                                Novo Lead
-                            </h2>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                                Preencha os dados do potencial cliente
-                            </p>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h2 id="create-lead-title" className="text-xl font-bold text-white tracking-tight">
+                            Novo Lead
+                        </h2>
+                        <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">
+                            Preencha os dados de contato
+                        </p>
+                    </div>
+                    <button
+                        onClick={close}
+                        className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                        aria-label="Fechar"
+                        disabled={isPending}
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleSubmit} noValidate className="space-y-5">
+
+                    {/* Nome */}
+                    <Field label="Nome Completo" error={errors.nome} icon={<User className="h-4 w-4" />}>
+                        <input
+                            ref={firstInputRef}
+                            type="text"
+                            placeholder="Ex.: João Silva"
+                            value={form.nome}
+                            onChange={(e) => set("nome", e.target.value)}
+                            className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 transition-colors ${errors.nome ? "border-red-500/50 focus:border-red-500/50" : ""}`}
+                            disabled={isPending}
+                        />
+                    </Field>
+
+                    {/* DDD + Telefone (row) */}
+                    <div className="flex gap-4">
+                        <div className="w-24 flex-shrink-0">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                                DDD
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Ex: 11"
+                                maxLength={2}
+                                value={form.ddd}
+                                onChange={(e) => set("ddd", e.target.value.replace(/\D/g, ''))} // Só permite números
+                                className={`glass-input w-full bg-[#050505] border-white/10 text-sm text-center focus:border-cyan-500/50 transition-colors ${errors.ddd ? "border-red-500/50" : ""}`}
+                                disabled={isPending}
+                            />
+                            {errors.ddd && <p className="text-[10px] text-red-400 mt-1">{errors.ddd}</p>}
                         </div>
-                        <button
-                            onClick={close}
-                            className="btn-ghost p-1.5"
-                            aria-label="Fechar"
+                        <Field
+                            label="Telefone / WhatsApp"
+                            error={errors.telefone}
+                            icon={<Phone className="h-4 w-4" />}
+                            className="flex-1"
                         >
-                            <X className="h-4 w-4" />
-                        </button>
+                            <input
+                                type="tel"
+                                placeholder="9 9999-9999"
+                                value={form.telefone}
+                                onChange={(e) => set("telefone", e.target.value)}
+                                className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 transition-colors ${errors.telefone ? "border-red-500/50 focus:border-red-500/50" : ""}`}
+                                disabled={isPending}
+                            />
+                        </Field>
                     </div>
 
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} noValidate className="space-y-4">
+                    {/* Cidade */}
+                    <Field label="Cidade" error={errors.cidade} icon={<MapPin className="h-4 w-4" />}>
+                        <input
+                            type="text"
+                            placeholder="Ex.: São Paulo"
+                            value={form.cidade}
+                            onChange={(e) => set("cidade", e.target.value)}
+                            className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 transition-colors ${errors.cidade ? "border-red-500/50 focus:border-red-500/50" : ""}`}
+                            disabled={isPending}
+                        />
+                    </Field>
 
-                        {/* Nome */}
-                        <Field
-                            label="Nome Completo"
-                            error={errors.nome}
-                            icon={<User className="h-4 w-4" />}
+                    {/* Interesse */}
+                    <Field label="Interesse" error={errors.interesse} icon={<Home className="h-4 w-4" />}>
+                        <select
+                            value={form.interesse}
+                            onChange={(e) => set("interesse", e.target.value)}
+                            className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 transition-colors ${errors.interesse ? "border-red-500/50 focus:border-red-500/50" : ""}`}
+                            disabled={isPending}
                         >
-                            <input
-                                ref={firstInputRef}
-                                type="text"
-                                placeholder="Ex.: João Silva"
-                                value={form.nome}
-                                onChange={(e) => set("nome", e.target.value)}
-                                className={`glass-input pl-10 ${errors.nome ? "border-red-500/40" : ""}`}
-                                disabled={isPending}
-                            />
-                        </Field>
+                            <option value="">Selecione…</option>
+                            {INTERESSE_OPTIONS.map((opt) => (
+                                <option key={opt} value={opt} className="bg-[#0a0a0a]">{opt}</option>
+                            ))}
+                        </select>
+                    </Field>
 
-                        {/* DDD + Telefone (row) */}
-                        <div className="flex gap-3">
-                            <div className="w-28 flex-shrink-0">
-                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                                    DDD
-                                </label>
-                                <select
-                                    value={form.ddd}
-                                    onChange={(e) => set("ddd", e.target.value)}
-                                    className="glass-input"
-                                    disabled={isPending}
-                                >
-                                    {DDD_OPTIONS.map((d) => (
-                                        <option key={d} value={d}>{d}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <Field
-                                label="Telefone / WhatsApp"
-                                error={errors.telefone}
-                                icon={<Phone className="h-4 w-4" />}
-                                className="flex-1"
-                            >
-                                <input
-                                    type="tel"
-                                    placeholder="9 9999-9999"
-                                    value={form.telefone}
-                                    onChange={(e) => set("telefone", e.target.value)}
-                                    className={`glass-input pl-10 ${errors.telefone ? "border-red-500/40" : ""}`}
-                                    disabled={isPending}
-                                />
-                            </Field>
-                        </div>
-
-                        {/* Cidade */}
-                        <Field
-                            label="Cidade"
-                            error={errors.cidade}
-                            icon={<MapPin className="h-4 w-4" />}
+                    {/* Actions */}
+                    <div className="flex gap-3 pt-4">
+                        <button
+                            type="button"
+                            onClick={close}
+                            className="w-1/3 py-2.5 text-xs font-bold text-slate-400 bg-white/5 border border-white/10 rounded-lg hover:text-white hover:bg-white/10 transition-colors uppercase tracking-wide"
+                            disabled={isPending}
                         >
-                            <input
-                                type="text"
-                                placeholder="Ex.: São Paulo"
-                                value={form.cidade}
-                                onChange={(e) => set("cidade", e.target.value)}
-                                className={`glass-input pl-10 ${errors.cidade ? "border-red-500/40" : ""}`}
-                                disabled={isPending}
-                            />
-                        </Field>
-
-                        {/* Interesse */}
-                        <Field
-                            label="Interesse"
-                            error={errors.interesse}
-                            icon={<Home className="h-4 w-4" />}
+                            Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isPending}
+                            className="w-2/3 py-2.5 flex items-center justify-center gap-2 text-xs font-bold text-black bg-cyan-400 rounded-lg hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] uppercase tracking-wide disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                            <select
-                                value={form.interesse}
-                                onChange={(e) => set("interesse", e.target.value)}
-                                className={`glass-input pl-10 ${errors.interesse ? "border-red-500/40" : ""}`}
-                                disabled={isPending}
-                            >
-                                <option value="">Selecione…</option>
-                                {INTERESSE_OPTIONS.map((opt) => (
-                                    <option key={opt} value={opt}>{opt}</option>
-                                ))}
-                            </select>
-                        </Field>
-
-                        {/* Actions */}
-                        <div className="flex gap-3 pt-2">
-                            <button
-                                type="button"
-                                onClick={close}
-                                className="btn-ghost flex-1 justify-center"
-                                disabled={isPending}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={isPending}
-                                className="btn-brand flex-1 justify-center disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
-                                id="btn-create-lead-submit"
-                            >
-                                {isPending ? (
-                                    <><Loader2 className="h-4 w-4 animate-spin" />Salvando…</>
-                                ) : (
-                                    "Criar Lead"
-                                )}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                            {isPending ? (
+                                <><Loader2 className="h-4 w-4 animate-spin" /> Salvando...</>
+                            ) : (
+                                "Criar Lead"
+                            )}
+                        </button>
+                    </div>
+                </form>
             </div>
-        </>
+        </div>
     );
 }
 
 // -----------------------------------------------------------------------
-// Field wrapper (label + icon + error)
+// Field wrapper
 // -----------------------------------------------------------------------
-function Field({
-    label,
-    error,
-    icon,
-    children,
-    className = "",
-}: {
-    label: string;
-    error?: string;
-    icon: React.ReactNode;
-    children: React.ReactNode;
-    className?: string;
-}) {
+function Field({ label, error, icon, children, className = "" }: any) {
     return (
         <div className={`space-y-1.5 ${className}`}>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 {label}
             </label>
             <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cyan-500/50">
                     {icon}
                 </span>
                 {children}
             </div>
-            {error && (
-                <p className="text-xs text-red-400">{error}</p>
-            )}
+            {error && <p className="text-[10px] text-red-400">{error}</p>}
         </div>
     );
 }

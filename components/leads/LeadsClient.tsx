@@ -91,12 +91,12 @@ export function LeadsClient({ initialLeads }: LeadsClientProps) {
                     <div className="flex items-center gap-3 self-start sm:self-auto">
                         <button
                             onClick={() => openCreate()}
-                            className="btn-brand"
+                            className="flex items-center gap-1.5 text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all active:scale-95"
                             id="btn-novo-lead-lista"
                         >
                             + Novo Lead
                         </button>
-                        <button onClick={handlePrint} className="btn-ghost border border-white/[0.08]">
+                        <button onClick={handlePrint} className="btn-ghost border border-white/[0.08] hover:text-cyan-400 transition-colors">
                             <Printer className="h-4 w-4" />
                             Imprimir
                         </button>
@@ -121,20 +121,20 @@ export function LeadsClient({ initialLeads }: LeadsClientProps) {
                             placeholder="Pesquisar por nome ou telefone…"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="glass-input pl-10"
+                            className="glass-input pl-10 focus:border-cyan-500/50 transition-colors"
                         />
                     </div>
                     <button
                         onClick={() => setDrawerOpen(true)}
-                        className={`btn-ghost border whitespace-nowrap relative ${activeFilterCount > 0
-                            ? "border-indigo-500/40 text-indigo-400"
-                            : "border-white/[0.08]"
+                        className={`btn-ghost border whitespace-nowrap relative transition-colors ${activeFilterCount > 0
+                            ? "border-cyan-500/40 text-cyan-400"
+                            : "border-white/[0.08] hover:text-cyan-400"
                             }`}
                     >
                         <SlidersHorizontal className="h-4 w-4" />
                         Filtros Avançados
                         {activeFilterCount > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold text-white">
+                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-500 text-[10px] font-bold text-black">
                                 {activeFilterCount}
                             </span>
                         )}
@@ -151,7 +151,7 @@ export function LeadsClient({ initialLeads }: LeadsClientProps) {
                                 dataInicio: "De", dataFim: "Até",
                             };
                             return (
-                                <span key={key} className="badge badge-info">
+                                <span key={key} className="badge badge-info bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                                     {labels[key]}: {val}
                                 </span>
                             );
@@ -171,13 +171,14 @@ export function LeadsClient({ initialLeads }: LeadsClientProps) {
                 />
             </div>
 
-            {/* ---- Filter Drawer ---- */}
+            {/* ---- Filter Drawer (Agora Dinâmico!) ---- */}
             <FilterDrawer
                 isOpen={drawerOpen}
                 onClose={() => setDrawerOpen(false)}
                 filters={filters}
                 onChange={setFilters}
                 onClear={() => setFilters(EMPTY_FILTERS)}
+                leads={leads} // 👈 Aqui está a mágica!
             />
 
             {/* ---- Mass Action Toolbar ---- */}

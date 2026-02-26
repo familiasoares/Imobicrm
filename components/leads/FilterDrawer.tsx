@@ -2,7 +2,6 @@
 
 import React, { useEffect } from "react";
 import { X, SlidersHorizontal, Search } from "lucide-react";
-import { CIDADES, DDDS, INTERESSES } from "@/lib/mock-leads";
 
 export interface FilterValues {
     ddd: string;
@@ -18,6 +17,7 @@ interface FilterDrawerProps {
     filters: FilterValues;
     onChange: (f: FilterValues) => void;
     onClear: () => void;
+    leads: any[]; // 👈 Adicionamos a lista de leads aqui para ser dinâmica!
 }
 
 export function FilterDrawer({
@@ -26,32 +26,34 @@ export function FilterDrawer({
     filters,
     onChange,
     onClear,
+    leads = [], // Valor padrão para evitar erros
 }: FilterDrawerProps) {
     const set = (key: keyof FilterValues, value: string) =>
         onChange({ ...filters, [key]: value });
 
     const activeCount = Object.values(filters).filter(Boolean).length;
 
-    // Bloqueia a rolagem do fundo quando o modal de filtros está aberto
+    // 🧠 MÁGICA AQUI: Extrai apenas os valores únicos que existem nos leads atuais
+    const uniqueDDDs = Array.from(new Set(leads.map(l => l.ddd).filter(Boolean))).sort();
+    const uniqueCidades = Array.from(new Set(leads.map(l => l.cidade).filter(Boolean))).sort();
+    const uniqueInteresses = Array.from(new Set(leads.map(l => l.interesse).filter(Boolean))).sort();
+
     useEffect(() => {
         if (isOpen) document.body.style.overflow = 'hidden';
         else document.body.style.overflow = 'unset';
         return () => { document.body.style.overflow = 'unset'; }
     }, [isOpen]);
 
-    // O SEGREDO: Se não estiver aberto, não renderiza absolutamente nada na tela
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-            {/* Overlay Escuro para dar destaque ao centro */}
             <div
                 className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
                 onClick={onClose}
                 aria-hidden="true"
             />
 
-            {/* Modal Centralizado */}
             <aside
                 className="relative w-full max-w-lg bg-[#0a0a0a] border border-cyan-500/20 rounded-2xl shadow-[0_20px_60px_-15px_rgba(6,182,212,0.3)] flex flex-col overflow-hidden animate-fade-in-up"
                 aria-label="Filtros avançados"
@@ -73,17 +75,16 @@ export function FilterDrawer({
                     </button>
                 </div>
 
-                {/* Filters body com Scroll caso a tela do usuário seja pequena */}
+                {/* Filters body */}
                 <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10">
 
-                    {/* Search tip */}
                     <div className="rounded-xl p-3 text-xs text-slate-400 flex items-start gap-2 bg-cyan-500/5 border border-cyan-500/10">
                         <Search className="h-4 w-4 mt-0.5 text-cyan-400 flex-shrink-0" />
                         <span>Use a barra de pesquisa na tabela para buscar por nome ou telefone rapidamente.</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        {/* DDD */}
+                        {/* DDD Dinâmico */}
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                                 DDD da Região
@@ -94,13 +95,13 @@ export function FilterDrawer({
                                 className="glass-input w-full bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50"
                             >
                                 <option value="">Todos os DDDs</option>
-                                {DDDS.map((d) => (
+                                {uniqueDDDs.map((d) => (
                                     <option key={d} value={d} className="bg-[#0a0a0a]">({d})</option>
                                 ))}
                             </select>
                         </div>
 
-                        {/* Cidade */}
+                        {/* Cidade Dinâmica */}
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                                 Cidade
@@ -111,14 +112,14 @@ export function FilterDrawer({
                                 className="glass-input w-full bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50"
                             >
                                 <option value="">Todas as Cidades</option>
-                                {CIDADES.map((c) => (
+                                {uniqueCidades.map((c) => (
                                     <option key={c} value={c} className="bg-[#0a0a0a]">{c}</option>
                                 ))}
                             </select>
                         </div>
                     </div>
 
-                    {/* Interesse */}
+                    {/* Interesse Dinâmico */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                             Interesse
@@ -129,7 +130,7 @@ export function FilterDrawer({
                             className="glass-input w-full bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50"
                         >
                             <option value="">Todos os Interesses</option>
-                            {INTERESSES.map((i) => (
+                            {uniqueInteresses.map((i) => (
                                 <option key={i} value={i} className="bg-[#0a0a0a]">{i}</option>
                             ))}
                         </select>

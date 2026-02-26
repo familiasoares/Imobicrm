@@ -170,6 +170,7 @@ export default function ArquivadosPage() {
                 filters={filters}
                 onChange={setFilters}
                 onClear={() => setFilters(EMPTY_FILTERS)}
+                leads={leads} // <--- MÁGICA ADICIONADA AQUI!
             />
 
             {/* ---- Mass Action Toolbar ---- */}
