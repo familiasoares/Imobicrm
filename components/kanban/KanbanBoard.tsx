@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useEffect, useState, useTransition, useRef } from "react";
-import { Kanban, GripVertical, Sparkles } from "lucide-react";
+import { Kanban, GripVertical, Sparkles, Plus } from "lucide-react";
 import { updateLeadStatus } from "@/app/actions/lead.actions";
 import { useModal } from "@/components/providers/ModalProvider";
 
-// ... (Tipagens e COLUMNS iguais)
+// ... (Tipagens e COLUMNS)
 type LeadStatus = "NOVO_LEAD" | "EM_ATENDIMENTO" | "VISITA" | "AGENDAMENTO" | "PROPOSTA" | "VENDA_FECHADA" | "VENDA_PERDIDA";
 const COLUMNS: { id: LeadStatus; label: string; color: string }[] = [
     { id: "NOVO_LEAD", label: "Novo Lead", color: "#06b6d4" },
@@ -50,7 +50,9 @@ export function KanbanBoard({ initialLeads }: { initialLeads: any[] }) {
     const [dragOverCol, setDragOverCol] = useState<LeadStatus | null>(null);
     const [isPending, startTransition] = useTransition();
     const [showFinal, setShowFinal] = useState(false);
-    const { openEdit } = useModal();
+
+    // Adicionamos o openCreate aqui
+    const { openEdit, openCreate } = useModal();
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => { setLeads(initialLeads); }, [initialLeads]);
@@ -96,13 +98,28 @@ export function KanbanBoard({ initialLeads }: { initialLeads: any[] }) {
 
     return (
         <div className="flex flex-col h-[calc(100vh-140px)]">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
                 <h1 className="text-xl font-black text-white flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-cyan-400" /> FUNIL
                 </h1>
-                <button onClick={() => setShowFinal(!showFinal)} className="text-[10px] font-bold text-cyan-400 border border-cyan-500/30 px-3 py-1.5 rounded-lg bg-cyan-500/5 uppercase">
-                    {showFinal ? "Focar" : "Ver Tudo"}
-                </button>
+
+                {/* Aqui estão os botões ajustados */}
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setShowFinal(!showFinal)}
+                        className="text-[10px] font-bold text-cyan-400 border border-cyan-500/30 px-3 py-2 rounded-lg bg-cyan-500/5 uppercase hover:bg-cyan-500/10 transition-colors"
+                    >
+                        {showFinal ? "Focar" : "Ver Tudo"}
+                    </button>
+
+                    <button
+                        onClick={openCreate}
+                        className="flex items-center gap-1.5 text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all active:scale-95"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Novo Lead
+                    </button>
+                </div>
             </div>
 
             <div ref={scrollRef} className="flex-1 overflow-x-auto pb-4">
