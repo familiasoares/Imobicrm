@@ -17,7 +17,7 @@ interface FilterDrawerProps {
     filters: FilterValues;
     onChange: (f: FilterValues) => void;
     onClear: () => void;
-    leads: any[]; // 👈 Adicionamos a lista de leads aqui para ser dinâmica!
+    leads?: any[]; // Opcional para evitar erros
 }
 
 export function FilterDrawer({
@@ -26,14 +26,14 @@ export function FilterDrawer({
     filters,
     onChange,
     onClear,
-    leads = [], // Valor padrão para evitar erros
+    leads = [],
 }: FilterDrawerProps) {
     const set = (key: keyof FilterValues, value: string) =>
         onChange({ ...filters, [key]: value });
 
     const activeCount = Object.values(filters).filter(Boolean).length;
 
-    // 🧠 MÁGICA AQUI: Extrai apenas os valores únicos que existem nos leads atuais
+    // Extrai apenas os valores únicos
     const uniqueDDDs = Array.from(new Set(leads.map(l => l.ddd).filter(Boolean))).sort();
     const uniqueCidades = Array.from(new Set(leads.map(l => l.cidade).filter(Boolean))).sort();
     const uniqueInteresses = Array.from(new Set(leads.map(l => l.interesse).filter(Boolean))).sort();
@@ -55,12 +55,11 @@ export function FilterDrawer({
             />
 
             <aside
-                className="relative w-full max-w-lg bg-[#0a0a0a] border border-cyan-500/20 rounded-2xl shadow-[0_20px_60px_-15px_rgba(6,182,212,0.3)] flex flex-col overflow-hidden animate-fade-in-up"
+                className="relative w-full max-w-lg bg-[#0a0a0a] border border-cyan-500/20 rounded-2xl shadow-[0_20px_60px_-15px_rgba(6,182,212,0.3)] flex flex-col overflow-hidden animate-fade-in-up max-h-[90dvh]"
                 aria-label="Filtros avançados"
-                style={{ maxHeight: '85vh' }}
             >
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] bg-[#0d0d0d]">
+                {/* Header BLINDADO com shrink-0 */}
+                <div className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-white/[0.06] bg-[#0d0d0d]">
                     <div className="flex items-center gap-2">
                         <SlidersHorizontal className="h-5 w-5 text-cyan-400" />
                         <span className="font-bold text-white text-base uppercase tracking-wide">Filtros Avançados</span>
@@ -75,7 +74,7 @@ export function FilterDrawer({
                     </button>
                 </div>
 
-                {/* Filters body */}
+                {/* Filters body com rolagem isolada */}
                 <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10">
 
                     <div className="rounded-xl p-3 text-xs text-slate-400 flex items-start gap-2 bg-cyan-500/5 border border-cyan-500/10">
@@ -84,7 +83,7 @@ export function FilterDrawer({
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        {/* DDD Dinâmico */}
+                        {/* DDD */}
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                                 DDD da Região
@@ -101,7 +100,7 @@ export function FilterDrawer({
                             </select>
                         </div>
 
-                        {/* Cidade Dinâmica */}
+                        {/* Cidade */}
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                                 Cidade
@@ -119,7 +118,7 @@ export function FilterDrawer({
                         </div>
                     </div>
 
-                    {/* Interesse Dinâmico */}
+                    {/* Interesse */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                             Interesse
@@ -164,8 +163,8 @@ export function FilterDrawer({
                     </div>
                 </div>
 
-                {/* Footer */}
-                <div className="px-6 py-5 border-t border-white/[0.06] bg-[#0d0d0d] flex gap-3">
+                {/* Footer BLINDADO com shrink-0 */}
+                <div className="shrink-0 px-6 py-5 border-t border-white/[0.06] bg-[#0d0d0d] flex gap-3">
                     <button
                         onClick={onClear}
                         className="w-1/3 py-2.5 text-xs font-bold text-slate-400 bg-white/5 border border-white/10 rounded-lg hover:text-white hover:bg-white/10 transition-colors uppercase tracking-wide"
