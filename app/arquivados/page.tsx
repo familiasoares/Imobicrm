@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
-import { Search, SlidersHorizontal, Printer, Archive } from "lucide-react";
-import { ARCHIVED_LEADS, leadsToCSV, downloadCSV, Lead } from "@/lib/mock-leads";
+import React, { useState, useCallback, useEffect, useTransition } from "react";
+import { Search, SlidersHorizontal, Printer, Archive, Loader2 } from "lucide-react";
+import { getArchivedLeads, reactivateLead, deleteLeadForever } from "@/app/actions/lead.actions";
 import { LeadTable } from "@/components/leads/LeadTable";
 import { FilterDrawer, FilterValues } from "@/components/leads/FilterDrawer";
 import { MassActionToolbar } from "@/components/leads/MassActionToolbar";
@@ -13,12 +13,24 @@ const EMPTY_FILTERS: FilterValues = {
 };
 
 export default function ArquivadosPage() {
-    const [leads, setLeads] = useState<Lead[]>(ARCHIVED_LEADS);
+    const [leads, setLeads] = useState<any[]>([]);
     const [search, setSearch] = useState("");
     const [filters, setFilters] = useState<FilterValues>(EMPTY_FILTERS);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isPending, startTransition] = useTransition();
+
+    // 1. Busca os Leads Arquivados reais do banco de dados ao carregar a página
+    useEffect(() => {
+        getArchivedLeads().then((data) => {
+            setLeads(data);
+            setIsLoading(false);
+        }).catch(() => {
+            setIsLoading(false);
+        });
+    }, []);
 
     const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
@@ -41,16 +53,32 @@ export default function ArquivadosPage() {
         });
     }, []);
 
-    // ---- Mass actions ----
+    // ---- Mass actions (Conectadas ao Banco de Dados) ----
     const handleReactivate = () => {
-        setLeads((prev) => prev.filter((l) => !selected.has(l.id)));
-        setSelected(new Set());
+        startTransition(async () => {
+            const idsToReactivate = Array.from(selected);
+
+            // Atualização Otimista: remove da tela na hora para dar fluidez
+            setLeads((prev) => prev.filter((l) => !selected.has(l.id)));
+            setSelected(new Set());
+
+            // Processa no banco de dados em segundo plano
+            await Promise.all(idsToReactivate.map(id => reactivateLead(id)));
+        });
     };
 
     const handleDeleteForever = () => {
-        setLeads((prev) => prev.filter((l) => !selected.has(l.id)));
-        setSelected(new Set());
-        setShowDeleteModal(false);
+        startTransition(async () => {
+            const idsToDelete = Array.from(selected);
+
+            // Atualização Otimista
+            setLeads((prev) => prev.filter((l) => !selected.has(l.id)));
+            setSelected(new Set());
+            setShowDeleteModal(false);
+
+            // Processa exclusão permanente no banco
+            await Promise.all(idsToDelete.map(id => deleteLeadForever(id)));
+        });
     };
 
     const handlePrint = () => window.print();
@@ -58,43 +86,30 @@ export default function ArquivadosPage() {
     return (
         <>
             <div className="space-y-5 max-w-7xl mx-auto animate-fade-in" id="print-area">
-
                 {/* ---- Page header ---- */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
                     <div>
                         <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                            <Archive className="h-5 w-5 text-slate-400" />
+                            <Archive className="h-5 w-5 text-cyan-500" />
                             Leads Arquivados
                         </h1>
                         <p className="text-sm text-slate-400 mt-0.5">
-                            {leads.length} leads arquivados — use "Reativar" para trazê-los de volta ao funil
+                            {isLoading ? "Buscando dados..." : `${leads.length} leads arquivados — use "Reativar" para trazê-los de volta ao funil`}
                         </p>
                     </div>
                     <button
                         onClick={handlePrint}
-                        className="btn-ghost border border-white/[0.08] self-start sm:self-auto"
+                        className="btn-ghost border border-white/[0.08] self-start sm:self-auto text-cyan-400 hover:bg-cyan-500/10"
                     >
                         <Printer className="h-4 w-4" />
                         Imprimir Lista
                     </button>
                 </div>
 
-                {/* ---- Print-only header ---- */}
-                <div className="hidden print:block mb-4">
-                    <h1 className="text-2xl font-bold text-black">Leads Arquivados</h1>
-                    <p className="text-sm text-gray-500">
-                        Gerado em {new Date().toLocaleDateString("pt-BR")}
-                    </p>
-                    <hr className="my-3 border-gray-300" />
-                </div>
-
                 {/* ---- Warning banner ---- */}
                 <div
                     className="rounded-xl px-4 py-3 flex items-center gap-3 print:hidden"
-                    style={{
-                        background: "rgba(239, 68, 68, 0.07)",
-                        border: "1px solid rgba(239, 68, 68, 0.15)",
-                    }}
+                    style={{ background: "rgba(239, 68, 68, 0.07)", border: "1px solid rgba(239, 68, 68, 0.15)" }}
                 >
                     <Archive className="h-4 w-4 text-red-400 flex-shrink-0" />
                     <p className="text-xs text-red-300/80">
@@ -117,49 +132,35 @@ export default function ArquivadosPage() {
                     </div>
                     <button
                         onClick={() => setDrawerOpen(true)}
-                        className={`btn-ghost border whitespace-nowrap relative ${activeFilterCount > 0
-                                ? "border-indigo-500/40 text-indigo-400"
-                                : "border-white/[0.08]"
-                            }`}
+                        className={`btn-ghost border whitespace-nowrap relative ${activeFilterCount > 0 ? "border-cyan-500/40 text-cyan-400" : "border-white/[0.08]"}`}
                     >
                         <SlidersHorizontal className="h-4 w-4" />
                         Filtros
                         {activeFilterCount > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold text-white">
+                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-500 text-[10px] font-bold text-black">
                                 {activeFilterCount}
                             </span>
                         )}
                     </button>
                 </div>
 
-                {/* ---- Active filters summary ---- */}
-                {activeFilterCount > 0 && (
-                    <div className="flex flex-wrap gap-2 print:hidden">
-                        {Object.entries(filters).map(([key, val]) => {
-                            if (!val) return null;
-                            const labels: Record<string, string> = {
-                                ddd: "DDD", cidade: "Cidade", interesse: "Interesse",
-                                dataInicio: "De", dataFim: "Até",
-                            };
-                            return (
-                                <span key={key} className="badge badge-info">
-                                    {labels[key]}: {val}
-                                </span>
-                            );
-                        })}
+                {/* ---- Loader / Table ---- */}
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20">
+                        <Loader2 className="h-8 w-8 text-cyan-500 animate-spin mb-4" />
+                        <p className="text-slate-400 text-sm font-medium">Carregando arquivo...</p>
                     </div>
+                ) : (
+                    <LeadTable
+                        leads={leads}
+                        selectedIds={selected}
+                        onToggleSelect={toggleSelect}
+                        onToggleAll={toggleAll}
+                        searchQuery={search}
+                        filters={filters}
+                        showStatus={true}
+                    />
                 )}
-
-                {/* ---- Table ---- */}
-                <LeadTable
-                    leads={leads}
-                    selectedIds={selected}
-                    onToggleSelect={toggleSelect}
-                    onToggleAll={toggleAll}
-                    searchQuery={search}
-                    filters={filters}
-                    showStatus={true}
-                />
             </div>
 
             {/* ---- Filter Drawer ---- */}
