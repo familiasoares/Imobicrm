@@ -4,11 +4,11 @@ import {
     TrendingUp,
     CheckCircle2,
     XCircle,
-    Clock,
-    ArrowUpRight,
-    Activity
+    Activity,
+    Plus
 } from "lucide-react";
 import { getDashboardData } from "@/app/actions/dashboard.actions";
+import { DashboardHeader } from "./DashboardHeader";
 
 function timeAgo(date: Date) {
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
     };
 
     const funnelStages = Object.keys(STATUS_CONFIG).map(key => {
-        const found = data.funnel.find(f => f.status === key);
+        const found = data.funnel.find((f: any) => f.status === key);
         return { key, ...STATUS_CONFIG[key], count: found?.count || 0 };
     });
 
@@ -65,10 +65,8 @@ export default async function DashboardPage() {
 
     return (
         <div className="space-y-8 max-w-7xl mx-auto p-4 sm:p-0">
-            <header>
-                <h1 className="text-2xl font-bold text-white tracking-tight">Dashboard Executivo</h1>
-                <p className="text-sm text-slate-500 mt-1">Resumo do desempenho de vendas em tempo real.</p>
-            </header>
+            {/* O cabeçalho foi extraído para um componente cliente */}
+            <DashboardHeader />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {cards.map(c => <StatCard key={c.label} {...c} />)}
