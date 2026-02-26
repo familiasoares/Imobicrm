@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom"; // 👈 A mágica do teletransporte!
 import { X, SlidersHorizontal, Search } from "lucide-react";
 
 export interface FilterValues {
@@ -28,6 +29,13 @@ export function FilterDrawer({
     onClear,
     leads = [],
 }: FilterDrawerProps) {
+    const [mounted, setMounted] = useState(false);
+
+    // Garante que o Portal só será criado no lado do Cliente (Navegador)
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     const set = (key: keyof FilterValues, value: string) =>
         onChange({ ...filters, [key]: value });
 
@@ -37,26 +45,28 @@ export function FilterDrawer({
     const uniqueCidades = Array.from(new Set(leads.map(l => l.cidade).filter(Boolean))).sort();
     const uniqueInteresses = Array.from(new Set(leads.map(l => l.interesse).filter(Boolean))).sort();
 
+    // Trava o scroll da página de trás
     useEffect(() => {
         if (isOpen) document.body.style.overflow = 'hidden';
         else document.body.style.overflow = 'unset';
         return () => { document.body.style.overflow = 'unset'; }
     }, [isOpen]);
 
-    if (!isOpen) return null;
+    // Se não estiver aberto ou não tiver montado no navegador, não renderiza nada
+    if (!isOpen || !mounted) return null;
 
-    return (
-        // 1. ANCORAGEM ABSOLUTA: flex items-center justify-center garante que o modal SEMPRE ficará no meio da tela da câmera, ignorando o fundo.
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+    // 📦 Todo o conteúdo do Modal guardado numa variável
+    const modalContent = (
+        <div className="fixed top-0 left-0 w-screen h-screen z-[9999] flex items-center justify-center p-4 sm:p-6">
 
-            {/* 2. Overlay fixo */}
+            {/* Overlay Escuro */}
             <div
                 className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
                 onClick={onClose}
                 aria-hidden="true"
             />
 
-            {/* 3. Modal Blindado: overflow-hidden garante que nada vaza. max-h-[90dvh] garante que ele nunca será maior que a tela. */}
+            {/* Modal Blindado */}
             <aside
                 className="relative flex flex-col w-full max-w-lg bg-[#0a0a0a] border border-cyan-500/20 rounded-2xl shadow-[0_20px_60px_-15px_rgba(6,182,212,0.5)] animate-fade-in-up overflow-hidden"
                 style={{ maxHeight: '90dvh' }}
@@ -185,4 +195,7 @@ export function FilterDrawer({
             </aside>
         </div>
     );
+
+    // 🚀 O Teletransporte acontece aqui: injetando o modal diretamente no body
+    return createPortal(modalContent, document.body);
 }
