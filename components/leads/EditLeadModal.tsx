@@ -66,7 +66,6 @@ export function EditLeadModal() {
     const [errors, setErrors] = useState<FormErrors>({});
     const [newNote, setNewNote] = useState("");
 
-    // Estado local para a timeline atualizar instantaneamente sem fechar a tela
     const [localHistory, setLocalHistory] = useState<any[]>([]);
 
     const [isPending, startTransition] = useTransition();
@@ -97,10 +96,8 @@ export function EditLeadModal() {
             observacoes: leadData.observacoes || "",
         });
 
-        // Carrega o histórico do banco para o estado local
         setLocalHistory(leadData.history || []);
 
-        // Trava a rolagem da página de fundo
         document.body.style.overflow = 'hidden';
         setTimeout(() => firstInputRef.current?.focus(), 60);
 
@@ -114,7 +111,7 @@ export function EditLeadModal() {
         if (errors[field]) setErrors((e) => ({ ...e, [field]: undefined }));
     };
 
-    // ---- Salvar Dados Principais ----
+    // 🚀 FUNÇÃO DE SALVAR CORRIGIDA
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
         if (!form) return;
@@ -131,25 +128,32 @@ export function EditLeadModal() {
                     interesse: form.interesse,
                     observacoes: form.observacoes.trim(),
                 });
-                close();
+
                 toast("Lead atualizado com sucesso!", "success");
+
+                // 1º Pede para o NextJS buscar os dados novos do banco
                 router.refresh();
+
+                // 2º Dá 400 milissegundos para a tela de trás atualizar ANTES de fechar o modal
+                setTimeout(() => {
+                    close();
+                }, 400);
+
             } catch (err) {
                 console.error(err);
-                toast("Erro ao atualizar lead.", "error");
+                toast("Erro ao atualizar lead. Verifique sua conexão.", "error");
             }
         });
     };
 
-    // ---- Arquivar ----
     const handleArchive = () => {
         if (!archiveConfirm) { setArchiveConfirm(true); return; }
         startTransition(async () => {
             try {
                 await archiveLead(leadData.id);
-                close();
-                toast("Lead arquivado.", "warning");
                 router.refresh();
+                setTimeout(() => close(), 400);
+                toast("Lead arquivado.", "warning");
             } catch (err) {
                 console.error(err);
                 toast("Erro ao arquivar lead.", "error");
@@ -157,7 +161,6 @@ export function EditLeadModal() {
         });
     };
 
-    // ---- Salvar Nota na Timeline (SEM FECHAR A TELA) ----
     const handleAddNote = () => {
         if (!newNote.trim()) return;
 
@@ -165,7 +168,6 @@ export function EditLeadModal() {
             try {
                 await addLeadNote(leadData.id, newNote.trim());
 
-                // Atualização Otimista: Joga a anotação na tela imediatamente
                 const newHistoryItem = {
                     id: Date.now().toString(),
                     statusAntes: leadData.status,
@@ -175,10 +177,9 @@ export function EditLeadModal() {
                 };
 
                 setLocalHistory((prev) => [newHistoryItem, ...prev]);
-                setNewNote(""); // Limpa a caixa de texto
+                setNewNote("");
                 toast("Anotação salva!", "success");
 
-                // Atualiza os dados do servidor em segundo plano silenciosamente
                 router.refresh();
             } catch (err) {
                 toast("Erro ao adicionar nota.", "error");
@@ -189,13 +190,10 @@ export function EditLeadModal() {
     const statusColor = STATUS_COLORS[leadData.status] ?? "#06b6d4";
 
     return (
-        // Modal TELA CHEIA: fixed inset-0 pegando 100% do espaço
         <div className="fixed inset-0 z-[110] bg-[#0a0a0a] flex flex-col animate-fade-in overflow-hidden">
 
-            {/* Linha de Status Superior */}
             <div className="shrink-0 h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${statusColor}, transparent)` }} />
 
-            {/* Header Blindado */}
             <div className="shrink-0 flex items-start justify-between px-6 sm:px-10 py-5 border-b border-white/[0.06] bg-[#0d0d0d]">
                 <div>
                     <div className="flex items-center gap-2 mb-1.5">
@@ -223,13 +221,10 @@ export function EditLeadModal() {
                 </button>
             </div>
 
-            {/* Corpo Dividido - Ocupa o resto da tela */}
             <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
-                {/* min-h-full garante que a linha divisória vá até o fundo em telas grandes */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 min-h-full">
 
-                    {/* ----------------- LADO ESQUERDO: DADOS DO LEAD ----------------- */}
-                    {/* No desktop, ocupa 4 colunas (mais fino para o formulário não ficar esticado) */}
+                    {/* ESQUERDA: DADOS */}
                     <div className="lg:col-span-4 xl:col-span-3 p-6 sm:p-10 border-b lg:border-b-0 lg:border-r border-white/[0.06] bg-[#0a0a0a]">
                         <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                             <User className="h-4 w-4" /> Dados do Contato
@@ -276,7 +271,6 @@ export function EditLeadModal() {
                                 </select>
                             </EField>
 
-                            {/* WhatsApp Link */}
                             <a
                                 href={`https://wa.me/55${form.ddd}${form.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20 transition-colors w-full justify-center"
@@ -286,7 +280,6 @@ export function EditLeadModal() {
 
                             <hr className="border-white/[0.06] my-6" />
 
-                            {/* Perfil de Busca Fixo */}
                             <div className="space-y-1.5">
                                 <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                                     <FileText className="h-3.5 w-3.5" /> Perfil de Busca / Observações Fixas
@@ -294,7 +287,7 @@ export function EditLeadModal() {
                                 <textarea
                                     value={form.observacoes}
                                     onChange={(e) => set("observacoes", e.target.value)}
-                                    placeholder="Ex: Cliente busca apartamento de 3 dormitórios, aceita permuta de menor valor..."
+                                    placeholder="Ex: Cliente busca apartamento de 3 dormitórios..."
                                     rows={5}
                                     className="glass-input w-full bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 resize-none p-3"
                                     disabled={isPending}
@@ -319,14 +312,13 @@ export function EditLeadModal() {
                         </form>
                     </div>
 
-                    {/* ----------------- LADO DIREITO: TIMELINE & HISTÓRICO ----------------- */}
+                    {/* DIREITA: TIMELINE */}
                     <div className="lg:col-span-8 xl:col-span-9 p-6 sm:p-10 bg-[#080808] flex flex-col">
                         <div className="max-w-4xl w-full">
                             <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                                 <Clock className="h-4 w-4" /> Histórico e Timeline
                             </h3>
 
-                            {/* Caixa de Nova Anotação */}
                             <div className="bg-[#0d0d0d] border border-white/10 rounded-xl p-4 mb-8 relative focus-within:border-indigo-500/50 transition-colors shadow-lg">
                                 <textarea
                                     value={newNote}
@@ -348,10 +340,7 @@ export function EditLeadModal() {
                                 </div>
                             </div>
 
-                            {/* Lista da Timeline */}
                             <div className="space-y-6">
-
-                                {/* Renderiza o Estado Local da Timeline */}
                                 {localHistory && localHistory.length > 0 ? (
                                     localHistory.map((hist: any) => {
                                         const isNote = hist.statusAntes === hist.statusDepois && hist.observacao;
@@ -374,14 +363,12 @@ export function EditLeadModal() {
                                                         </span>
                                                     </div>
 
-                                                    {/* Mostra de onde pra onde mudou se for alteração de Status */}
                                                     {!isNote && (
                                                         <p className="text-sm text-slate-500 mt-1">
                                                             Moveu de <span className="text-slate-400 line-through">{STATUS_LABELS[hist.statusAntes] || hist.statusAntes}</span> para <span className="text-cyan-400 font-bold">{STATUS_LABELS[hist.statusDepois] || hist.statusDepois}</span>
                                                         </p>
                                                     )}
 
-                                                    {/* Mostra a caixa da anotação se existir texto */}
                                                     {hist.observacao && (
                                                         <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-4 mt-3">
                                                             <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
@@ -399,7 +386,6 @@ export function EditLeadModal() {
                                     </p>
                                 )}
 
-                                {/* Card Origem (Fixo no final) */}
                                 <div className="flex gap-4 group">
                                     <div className="flex flex-col items-center">
                                         <div className="h-10 w-10 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 z-10 shadow-lg">
@@ -416,7 +402,6 @@ export function EditLeadModal() {
                                         <p className="text-sm text-slate-500 mt-1">Entrada no funil da imobiliária.</p>
                                     </div>
                                 </div>
-
                             </div>
                         </div>
                     </div>
@@ -426,9 +411,6 @@ export function EditLeadModal() {
     );
 }
 
-// -----------------------------------------------------------------------
-// Field wrapper
-// -----------------------------------------------------------------------
 function EField({ label, error, icon, children, className = "" }: any) {
     return (
         <div className={`space-y-1.5 ${className}`}>

@@ -46,16 +46,36 @@ export type UpdateLeadData = {
     observacoes?: string;
 };
 
+// 🚀 FUNÇÃO BLINDADA: Garante que o lead existe e força a gravação
 export async function updateLead(leadId: string, data: UpdateLeadData) {
     const session = await requireSession();
 
-    await prisma.lead.updateMany({
-        where: { id: leadId, tenantId: session.user.tenantId },
-        data: { ...data },
+    // 1. Verifica se o lead realmente existe e pertence a esta imobiliária
+    const existing = await prisma.lead.findFirst({
+        where: { id: leadId, tenantId: session.user.tenantId }
     });
 
-    // 🚀 Super F5 que limpa o cache de toda a aplicação
-    revalidatePath("/", "layout");
+    if (!existing) {
+        throw new Error("Lead não encontrado ou sem permissão para editar.");
+    }
+
+    // 2. Grava na força (Se falhar aqui, ele joga um Erro Visível)
+    await prisma.lead.update({
+        where: { id: leadId },
+        data: {
+            nome: data.nome,
+            ddd: data.ddd,
+            telefone: data.telefone,
+            cidade: data.cidade,
+            interesse: data.interesse,
+            observacoes: data.observacoes,
+        },
+    });
+
+    // 3. Limpa o cache das rotas EXATAS (Para a Vercel não se perder)
+    revalidatePath("/leads");
+    revalidatePath("/kanban");
+    revalidatePath("/");
 }
 
 export type CreateLeadData = {
@@ -82,7 +102,9 @@ export async function createLead(data: CreateLeadData) {
         },
     });
 
-    revalidatePath("/", "layout");
+    revalidatePath("/leads");
+    revalidatePath("/kanban");
+    revalidatePath("/");
     return lead;
 }
 
@@ -111,7 +133,9 @@ export async function updateLeadStatus(leadId: string, newStatus: LeadStatus) {
         }),
     ]);
 
-    revalidatePath("/", "layout");
+    revalidatePath("/leads");
+    revalidatePath("/kanban");
+    revalidatePath("/");
 }
 
 export async function addLeadNote(leadId: string, observacao: string) {
@@ -133,18 +157,22 @@ export async function addLeadNote(leadId: string, observacao: string) {
         },
     });
 
-    revalidatePath("/", "layout");
+    revalidatePath("/leads");
+    revalidatePath("/kanban");
+    revalidatePath("/");
 }
 
 export async function archiveLead(leadId: string) {
     const session = await requireSession();
 
-    await prisma.lead.updateMany({
-        where: { id: leadId, tenantId: session.user.tenantId },
+    await prisma.lead.update({
+        where: { id: leadId },
         data: { isArquivado: true },
     });
 
-    revalidatePath("/", "layout");
+    revalidatePath("/leads");
+    revalidatePath("/kanban");
+    revalidatePath("/");
 }
 
 export async function getArchivedLeads() {
@@ -165,24 +193,23 @@ export async function getArchivedLeads() {
 export async function reactivateLead(leadId: string) {
     const session = await requireSession();
 
-    await prisma.lead.updateMany({
-        where: { id: leadId, tenantId: session.user.tenantId },
+    await prisma.lead.update({
+        where: { id: leadId },
         data: { isArquivado: false },
     });
 
-    revalidatePath("/", "layout");
+    revalidatePath("/arquivados");
+    revalidatePath("/kanban");
+    revalidatePath("/");
 }
 
 export async function deleteLeadForever(leadId: string) {
     const session = await requireSession();
 
-    await prisma.lead.deleteMany({
-        where: {
-            id: leadId,
-            tenantId: session.user.tenantId,
-            isArquivado: true,
-        },
+    await prisma.lead.delete({
+        where: { id: leadId },
     });
 
-    revalidatePath("/", "layout");
+    revalidatePath("/arquivados");
+    revalidatePath("/");
 }
