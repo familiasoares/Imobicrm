@@ -28,6 +28,7 @@ function LeadCard({ lead, onDragStart, onEdit, onStatusChange }: any) {
             className="relative rounded-xl border border-white/[0.08] bg-[#0a0a0a] p-4 cursor-pointer active:cursor-grabbing hover:border-cyan-500/50 hover:bg-[#0d0d0d] hover:shadow-[0_0_20px_rgba(6,182,212,0.15)] group transition-all"
         >
             <div className="flex items-start gap-3 select-none">
+                {/* Grip visível apenas no PC para indicar arraste */}
                 <div className="mt-1 cursor-grab active:cursor-grabbing hidden sm:block">
                     <GripVertical className="h-4 w-4 text-slate-600 group-hover:text-cyan-400 transition-colors" />
                 </div>
@@ -52,21 +53,31 @@ function LeadCard({ lead, onDragStart, onEdit, onStatusChange }: any) {
                 </span>
             </div>
 
-            {/* 🚀 BOTÃO EXCLUSIVO PARA CELULAR (Para evitar arrastar) */}
+            {/* 🚀 SELETOR DE STATUS SEMPRE VISÍVEL (Melhora mobile e agiliza PC) */}
             <div
-                className="mt-4 sm:hidden pt-3 border-t border-white/[0.06]"
+                className="mt-4 pt-3 border-t border-white/[0.06]"
                 onClick={(e) => e.stopPropagation()} // Blinda o clique para não abrir o modal
             >
-                <div className="relative">
-                    <ArrowRightLeft className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-cyan-500" />
+                <div className="relative group/select">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
+                        <ArrowRightLeft className="h-3.5 w-3.5 text-cyan-500/60" />
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Etapa:</span>
+                    </div>
                     <select
                         value={lead.status}
                         onChange={(e) => onStatusChange(lead.id, e.target.value)}
-                        className="w-full bg-[#050505] text-xs font-bold text-slate-300 border border-white/10 rounded-lg pl-9 pr-3 py-2.5 outline-none focus:border-cyan-500/50 appearance-none shadow-sm"
-                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23475569'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundPosition: `right 0.75rem center`, backgroundRepeat: `no-repeat`, backgroundSize: `1em 1em` }}
+                        className="w-full bg-[#050505] text-[10px] font-black text-slate-300 border border-white/10 rounded-lg pl-16 pr-8 py-2.5 outline-none focus:border-cyan-500/50 appearance-none cursor-pointer hover:bg-white/[0.02] transition-colors"
+                        style={{
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23475569'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                            backgroundPosition: `right 0.6rem center`,
+                            backgroundRepeat: `no-repeat`,
+                            backgroundSize: `0.9em 0.9em`
+                        }}
                     >
                         {COLUMNS.map(c => (
-                            <option key={c.id} value={c.id}>Mover p/ {c.label}</option>
+                            <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-sm">
+                                {c.label}
+                            </option>
                         ))}
                     </select>
                 </div>
@@ -113,7 +124,6 @@ export function KanbanBoard({ initialLeads }: { initialLeads: any[] }) {
         executeStatusChange(id, newStatus);
     };
 
-    // 🚀 FUNÇÃO CENTRALIZADA DE MUDAR STATUS (Serve pro Drag e pro Botão Mobile)
     const executeStatusChange = (leadId: string, newStatus: LeadStatus) => {
         if (!leadId) return;
         const lead = leads.find(l => l.id === leadId);
@@ -192,7 +202,7 @@ export function KanbanBoard({ initialLeads }: { initialLeads: any[] }) {
                                         lead={lead}
                                         onDragStart={handleDragStart}
                                         onEdit={openEdit}
-                                        onStatusChange={executeStatusChange} // 👈 Conecta o seletor mobile
+                                        onStatusChange={executeStatusChange}
                                     />
                                 ))}
 
