@@ -23,9 +23,6 @@ datasource db {
 // =============================================================================
 
 /// Papel (role) do utilizador dentro do sistema.
-/// ADMIN_SAAS  → dono/operador da plataforma (acesso global).
-/// GERENTE     → dono ou gestor de uma imobiliária específica (acesso ao seu tenant).
-/// CORRETOR    → agente comercial responsável por leads (acesso aos seus próprios leads).
 enum UserRole {
   ADMIN_SAAS
   GERENTE
@@ -33,22 +30,17 @@ enum UserRole {
 }
 
 /// Estágios do funil de vendas de um lead imobiliário.
-/// A progressão tipicamente segue esta ordem, mas pode retroceder ou
-/// saltar directamente para VENDA_FECHADA ou VENDA_PERDIDA.
 enum LeadStatus {
-  NOVO_LEAD        // Lead recém-captado, ainda não atendido
-  EM_ATENDIMENTO   // Corretor já contactou o lead / está em negociação
-  VISITA           // Visita ao imóvel agendada ou realizada
-  AGENDAMENTO      // Agendamento formal de reunião / assinatura
-  PROPOSTA         // Proposta comercial enviada ao lead
-  VENDA_FECHADA    // Negócio concluído com sucesso
-  VENDA_PERDIDA    // Lead descartado — motivo registado em LossReason
+  NOVO_LEAD
+  EM_ATENDIMENTO
+  VISITA
+  AGENDAMENTO
+  PROPOSTA
+  VENDA_FECHADA
+  VENDA_PERDIDA
 }
 
 /// Estado da assinatura/pagamento do tenant junto ao SaaS.
-/// ATIVA    → pagamento em dia, acesso total.
-/// ATRASADA → pagamento vencido mas ainda com acesso (período de graça).
-/// BLOQUEADA→ acesso suspenso por inadimplência prolongada.
 enum SubscriptionStatus {
   ATIVA
   ATRASADA
@@ -59,23 +51,18 @@ enum SubscriptionStatus {
 // MODELO: Tenant (Imobiliária / Cliente do SaaS)
 // =============================================================================
 
-/// Representa cada imobiliária cliente do SaaS.
-/// É o ponto-raiz de toda a hierarquia multi-tenant.
-/// Relacionamentos:
-///   1-para-N com User        (uma imobiliária tem vários utilizadores)
-///   1-para-N com Lead        (uma imobiliária tem vários leads)
-///   1-para-1 com Subscription(cada imobiliária tem uma assinatura)
 model Tenant {
   id        String   @id @default(cuid())
-  nome      String                              // Nome fantasia da imobiliária
-  cnpj      String?  @unique                    // CNPJ (opcional, para faturação)
+  nome      String   // Nome fantasia da imobiliária
+  cnpj      String?  @unique // CNPJ (opcional, para faturação)
   criadoEm  DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relacionamentos (1-N)
   users        User[]
   leads        Lead[]
-  subscription Subscription?             // (1-1) cada tenant tem no máximo 1 assinatura
+  tasks        Task[]             // 👈 NOVA RELAÇÃO: O Tenant possui várias tarefas
+  subscription Subscription?      // (1-1) cada tenant tem no máximo 1 assinatura
 
   @@map("tenants")
 }
@@ -84,19 +71,16 @@ model Tenant {
 // MODELO: Subscription (Assinatura do Tenant)
 // =============================================================================
 
-/// Controla o estado financeiro/acesso do tenant ao SaaS.
-/// Preparado para integração futura com o gateway Asaas.
-/// Relacionamento: N-para-1 com Tenant (cada assinatura pertence a um tenant).
 model Subscription {
-  id                 String             @id @default(cuid())
-  tenantId           String             @unique           // FK → Tenant (1-1)
-  status             SubscriptionStatus @default(ATIVA)
-  dataVencimento     DateTime                             // Próxima data de cobrança/vencimento
-  linkPagamento      String?                              // URL de boleto/Pix gerado pelo Asaas
-  asaasCustomerId    String?                              // ID do cliente no Asaas (integração externa)
-  asaasSubscriptionId String?                             // ID da assinatura no Asaas
-  criadoEm           DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  id                  String             @id @default(cuid())
+  tenantId            String             @unique // FK → Tenant (1-1)
+  status              SubscriptionStatus @default(ATIVA)
+  dataVencimento      DateTime           // Próxima data de cobrança/vencimento
+  linkPagamento       String?            // URL de boleto/Pix gerado pelo Asaas
+  asaasCustomerId     String?            // ID do cliente no Asaas (integração externa)
+  asaasSubscriptionId String?            // ID da assinatura no Asaas
+  criadoEm            DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   // Relacionamento (N-1)
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -108,20 +92,15 @@ model Subscription {
 // MODELO: User (Utilizador)
 // =============================================================================
 
-/// Utilizador autenticado no sistema. Pertence a exatamente um Tenant,
-/// exceto ADMIN_SAAS que pode operar sem tenant (tenantId nullable).
-/// Relacionamentos:
-///   N-para-1 com Tenant (um utilizador pertence a uma imobiliária)
-///   1-para-N com Lead   (um corretor pode ser responsável por vários leads)
 model User {
   id        String   @id @default(cuid())
-  tenantId  String?                             // NULL apenas para ADMIN_SAAS
+  tenantId  String?  // NULL apenas para ADMIN_SAAS
   nome      String
   email     String   @unique
-  senha     String                              // Hash bcrypt — nunca armazenar em texto simples
+  senha     String   // Hash bcrypt — nunca armazenar em texto simples
   role      UserRole @default(CORRETOR)
-  ativo     Boolean  @default(true)             // Permite desativar conta sem apagar
-  criadoEm DateTime @default(now())
+  ativo     Boolean  @default(true) // Permite desativar conta sem apagar
+  criadoEm  DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relacionamento N-1 com Tenant
@@ -138,27 +117,20 @@ model User {
 // MODELO: Lead (Entidade Principal)
 // =============================================================================
 
-/// Representa um potencial comprador/locatário captado pela imobiliária.
-/// É a entidade central do CRM.
-/// Relacionamentos:
-///   N-para-1 com Tenant      (lead pertence a uma imobiliária)
-///   N-para-1 com User        (lead tem um corretor responsável)
-///   1-para-N com LossReason  (quando VENDA_PERDIDA, regista o motivo)
-///   1-para-N com LeadHistory (histórico de mudanças de status)
 model Lead {
   id          String     @id @default(cuid())
-  tenantId    String                              // FK → Tenant (isolamento multi-tenant)
-  userId      String?                             // FK → User (corretor responsável; nullable = sem responsável)
+  tenantId    String     // FK → Tenant (isolamento multi-tenant)
+  userId      String?    // FK → User (corretor responsável; nullable = sem responsável)
   nome        String
   telefone    String
-  ddd         String                              // Ex.: "11", "21", "47" (max 3 chars)
+  ddd         String     // Ex.: "11", "21", "47" (max 3 chars)
   cidade      String
   interesse   String
-  observacoes String?    @db.Text                 // 👈 AQUI ESTÁ O CAMPO NOVO!
+  observacoes String?    @db.Text
   status      LeadStatus @default(NOVO_LEAD)
-  isArquivado Boolean    @default(false)          // Soft-delete: true = lead arquivado/descartado
-  criadoEm   DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  isArquivado Boolean    @default(false) // Soft-delete: true = lead arquivado/descartado
+  criadoEm    DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   // Relacionamento N-1 com Tenant
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -172,6 +144,9 @@ model Lead {
   // Relacionamento 1-N com LeadHistory (auditoria de mudanças de status)
   history LeadHistory[]
 
+  // Relacionamento 1-N com Task (Tarefas e Lembretes agendados para este lead)
+  tasks Task[] // 👈 NOVA RELAÇÃO: O Lead possui várias tarefas
+
   @@index([tenantId])
   @@index([userId])
   @@index([status])
@@ -183,14 +158,10 @@ model Lead {
 // MODELO: LossReason (Motivo de Perda)
 // =============================================================================
 
-/// Registra a justificativa textual sempre que um lead passa para VENDA_PERDIDA.
-/// Permite análise futura dos motivos de perda de negócios.
-/// Relacionamento: N-para-1 com Lead (um lead pode ter múltiplos registos
-/// de perda se for reativado e perdido novamente).
 model LossReason {
-  id        String   @id @default(cuid())
-  leadId    String                              // FK → Lead
-  motivo    String                              // Texto livre: ex. "Preço acima do orçamento"
+  id       String   @id @default(cuid())
+  leadId   String   // FK → Lead
+  motivo   String   // Texto livre: ex. "Preço acima do orçamento"
   criadoEm DateTime @default(now())
 
   // Relacionamento N-1 com Lead
@@ -204,20 +175,48 @@ model LossReason {
 // MODELO: LeadHistory (Histórico / Auditoria de Status)
 // =============================================================================
 
-/// Regista cada transição de status de um lead, criando uma trilha de auditoria.
-/// Permite visualizar o percurso completo do lead no funil.
-/// Relacionamento: N-para-1 com Lead (um lead pode ter N transições).
 model LeadHistory {
   id           String     @id @default(cuid())
-  leadId       String                                // FK → Lead
-  statusAntes  LeadStatus                            // Status anterior à mudança
-  statusDepois LeadStatus                            // Novo status após a mudança
-  observacao   String?                               // Nota opcional do corretor sobre a transição
-  criadoEm    DateTime   @default(now())
+  leadId       String     // FK → Lead
+  statusAntes  LeadStatus // Status anterior à mudança
+  statusDepois LeadStatus // Novo status após a mudança
+  observacao   String?    // Nota opcional do corretor sobre a transição
+  criadoEm     DateTime   @default(now())
 
   // Relacionamento N-1 com Lead
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([leadId])
   @@map("lead_history")
+}
+
+// =============================================================================
+// MODELO: Task (Automação / Agenda / Follow-up)
+// =============================================================================
+
+/// Representa uma tarefa ou ação agendada pelo corretor para um lead específico.
+/// Pode ser criada manualmente ou gerada automaticamente pela IA ao ler as notas.
+model Task {
+  id           String   @id @default(cuid())
+  tenantId     String   // FK → Tenant (Isolamento de dados)
+  leadId       String   // FK → Lead (Cliente alvo da tarefa)
+  
+  titulo       String   // Resumo da ação (Ex: "Enviar Opções de Imóveis")
+  tipo         String   // LIGAR, VISITA, ENVIAR_IMOVEIS, REUNIAO, PROPOSTA, ESCRITURA, RETORNAR
+  
+  dataAgendada DateTime // Quando a tarefa deve ser executada
+  concluida    Boolean  @default(false) // false = Pendente, true = Feita
+  prioridade   Int      @default(1) // 1: Normal, 2: Alta, 3: Urgente
+  
+  criadoEm     DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos N-1
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  // Índices para garantir que a Agenda carregue rápido
+  @@index([leadId])
+  @@index([tenantId, dataAgendada])
+  @@map("tasks")
 }
