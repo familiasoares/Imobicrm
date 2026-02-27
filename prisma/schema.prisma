@@ -1,12 +1,5 @@
 // =============================================================================
-// schema.prisma
-// CRM SaaS Multi-Tenant — Gestão de Leads Imobiliários
-// =============================================================================
-// Convenções:
-//  • Todos os modelos principais possuem tenantId para isolamento total de dados
-//    por imobiliária (tenant). Isto garante que nenhum tenant veja dados de outro.
-//  • Datas são armazenadas em UTC (DateTime @default(now()) / @updatedAt).
-//  • Soft-delete via campo isArquivado (sem remoção física de registos).
+// schema.prisma — Wave CRM (Completo e Auditável)
 // =============================================================================
 
 generator client {
@@ -18,18 +11,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// =============================================================================
-// ENUMS
-// =============================================================================
+// --- ENUMS ---
 
-/// Papel (role) do utilizador dentro do sistema.
 enum UserRole {
   ADMIN_SAAS
   GERENTE
   CORRETOR
 }
 
-/// Estágios do funil de vendas de um lead imobiliário.
 enum LeadStatus {
   NOVO_LEAD
   EM_ATENDIMENTO
@@ -40,182 +29,140 @@ enum LeadStatus {
   VENDA_PERDIDA
 }
 
-/// Estado da assinatura/pagamento do tenant junto ao SaaS.
 enum SubscriptionStatus {
   ATIVA
   ATRASADA
   BLOQUEADA
 }
 
-// =============================================================================
-// MODELO: Tenant (Imobiliária / Cliente do SaaS)
-// =============================================================================
+// --- MODELS ---
 
 model Tenant {
-  id        String   @id @default(cuid())
-  nome      String   // Nome fantasia da imobiliária
-  cnpj      String?  @unique // CNPJ (opcional, para faturação)
-  criadoEm  DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relacionamentos (1-N)
+  id           String         @id @default(cuid())
+  nome         String
+  cnpj         String?        @unique
+  criadoEm     DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
   users        User[]
   leads        Lead[]
-  tasks        Task[]             // 👈 NOVA RELAÇÃO: O Tenant possui várias tarefas
-  subscription Subscription?      // (1-1) cada tenant tem no máximo 1 assinatura
+  tasks        Task[]
+  subscription Subscription?
 
   @@map("tenants")
 }
 
-// =============================================================================
-// MODELO: Subscription (Assinatura do Tenant)
-// =============================================================================
-
 model Subscription {
   id                  String             @id @default(cuid())
-  tenantId            String             @unique // FK → Tenant (1-1)
+  tenantId            String             @unique
   status              SubscriptionStatus @default(ATIVA)
-  dataVencimento      DateTime           // Próxima data de cobrança/vencimento
-  linkPagamento       String?            // URL de boleto/Pix gerado pelo Asaas
-  asaasCustomerId     String?            // ID do cliente no Asaas (integração externa)
-  asaasSubscriptionId String?            // ID da assinatura no Asaas
+  dataVencimento      DateTime
+  linkPagamento       String?
+  asaasCustomerId     String?
+  asaasSubscriptionId String?
   criadoEm            DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
-
-  // Relacionamento (N-1)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
 }
 
-// =============================================================================
-// MODELO: User (Utilizador)
-// =============================================================================
-
 model User {
-  id        String   @id @default(cuid())
-  tenantId  String?  // NULL apenas para ADMIN_SAAS
+  id        String    @id @default(cuid())
+  tenantId  String?
   nome      String
-  email     String   @unique
-  senha     String   // Hash bcrypt — nunca armazenar em texto simples
-  role      UserRole @default(CORRETOR)
-  ativo     Boolean  @default(true) // Permite desativar conta sem apagar
-  criadoEm  DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relacionamento N-1 com Tenant
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
-
-  // Relacionamento 1-N com Lead (leads sob responsabilidade deste corretor)
-  leads Lead[]
+  email     String    @unique
+  senha     String
+  role      UserRole  @default(CORRETOR)
+  ativo     Boolean   @default(true)
+  criadoEm  DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tenant    Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  leads     Lead[]
+  
+  // Relação para auditoria do histórico
+  history   LeadHistory[]
 
   @@index([tenantId])
   @@map("users")
 }
 
-// =============================================================================
-// MODELO: Lead (Entidade Principal)
-// =============================================================================
-
 model Lead {
-  id          String     @id @default(cuid())
-  tenantId    String     // FK → Tenant (isolamento multi-tenant)
-  userId      String?    // FK → User (corretor responsável; nullable = sem responsável)
-  nome        String
-  telefone    String
-  ddd         String     // Ex.: "11", "21", "47" (max 3 chars)
-  cidade      String
-  interesse   String
-  observacoes String?    @db.Text
-  status      LeadStatus @default(NOVO_LEAD)
-  isArquivado Boolean    @default(false) // Soft-delete: true = lead arquivado/descartado
-  criadoEm    DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id           String     @id @default(cuid())
+  tenantId     String
+  userId       String?
+  nome         String
+  telefone     String
+  ddd          String
+  cidade       String
+  interesse    String
 
-  // Relacionamento N-1 com Tenant
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Campos de Perfil (Evolução Wave CRM)
+  tipoImovel               String?   
+  valorPretendido          String?   
+  perfilFinanceiro         String?   
+  caracteristicasDesejadas String?   
 
-  // Relacionamento N-1 com User (corretor responsável)
-  corretor User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  observacoes  String?    @db.Text
+  status       LeadStatus @default(NOVO_LEAD)
+  isArquivado  Boolean    @default(false)
+  criadoEm     DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  // Relacionamento 1-N com LossReason (apenas quando status = VENDA_PERDIDA)
-  lossReasons LossReason[]
-
-  // Relacionamento 1-N com LeadHistory (auditoria de mudanças de status)
-  history LeadHistory[]
-
-  // Relacionamento 1-N com Task (Tarefas e Lembretes agendados para este lead)
-  tasks Task[] // 👈 NOVA RELAÇÃO: O Lead possui várias tarefas
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  corretor     User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lossReasons  LossReason[]
+  history      LeadHistory[]
+  tasks        Task[]
 
   @@index([tenantId])
   @@index([userId])
   @@index([status])
-  @@index([tenantId, isArquivado]) // Índice composto para queries de listagem filtrada
+  @@index([tenantId, isArquivado])
   @@map("leads")
 }
 
-// =============================================================================
-// MODELO: LossReason (Motivo de Perda)
-// =============================================================================
-
 model LossReason {
   id       String   @id @default(cuid())
-  leadId   String   // FK → Lead
-  motivo   String   // Texto livre: ex. "Preço acima do orçamento"
+  leadId   String
+  motivo   String
   criadoEm DateTime @default(now())
-
-  // Relacionamento N-1 com Lead
-  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([leadId])
   @@map("loss_reasons")
 }
 
-// =============================================================================
-// MODELO: LeadHistory (Histórico / Auditoria de Status)
-// =============================================================================
-
 model LeadHistory {
   id           String     @id @default(cuid())
-  leadId       String     // FK → Lead
-  statusAntes  LeadStatus // Status anterior à mudança
-  statusDepois LeadStatus // Novo status após a mudança
-  observacao   String?    // Nota opcional do corretor sobre a transição
+  leadId       String
+  userId       String?    // ID do usuário que realizou a ação
+  statusAntes  LeadStatus
+  statusDepois LeadStatus
+  observacao   String?    @db.Text
   criadoEm     DateTime   @default(now())
-
-  // Relacionamento N-1 com Lead
-  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  lead         Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  usuario      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([leadId])
+  @@index([userId])
   @@map("lead_history")
 }
 
-// =============================================================================
-// MODELO: Task (Automação / Agenda / Follow-up)
-// =============================================================================
-
-/// Representa uma tarefa ou ação agendada pelo corretor para um lead específico.
-/// Pode ser criada manualmente ou gerada automaticamente pela IA ao ler as notas.
 model Task {
   id           String   @id @default(cuid())
-  tenantId     String   // FK → Tenant (Isolamento de dados)
-  leadId       String   // FK → Lead (Cliente alvo da tarefa)
-  
-  titulo       String   // Resumo da ação (Ex: "Enviar Opções de Imóveis")
-  tipo         String   // LIGAR, VISITA, ENVIAR_IMOVEIS, REUNIAO, PROPOSTA, ESCRITURA, RETORNAR
-  
-  dataAgendada DateTime // Quando a tarefa deve ser executada
-  concluida    Boolean  @default(false) // false = Pendente, true = Feita
-  prioridade   Int      @default(1) // 1: Normal, 2: Alta, 3: Urgente
-  
+  tenantId     String
+  leadId       String
+  titulo       String
+  tipo         String
+  dataAgendada DateTime
+  concluida    Boolean  @default(false)
+  prioridade   Int      @default(1)
   criadoEm     DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  // Relacionamentos N-1
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
-  // Índices para garantir que a Agenda carregue rápido
   @@index([leadId])
   @@index([tenantId, dataAgendada])
   @@map("tasks")

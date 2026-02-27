@@ -16,13 +16,14 @@ import {
     ChevronRight,
     Sparkles,
     X,
+    CalendarCheck // 👈 Ícone da Agenda adicionado aqui
 } from "lucide-react";
 import { useSidebar, NavItemId } from "@/components/providers/SidebarProvider";
 
 type NavSection = {
     label?: string;
     items: {
-        id: NavItemId;
+        id: NavItemId | string; // 👈 Adicionado suporte para string caso NavItemId seja estrito
         label: string;
         icon: React.ElementType;
         href: string;
@@ -34,6 +35,7 @@ const navSections: NavSection[] = [
         label: "Principal",
         items: [
             { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/" },
+            { id: "agenda", label: "Agenda & Tarefas", icon: CalendarCheck, href: "/agenda" }, // 👈 Novo botão da Agenda!
             { id: "kanban", label: "Kanban", icon: Kanban, href: "/kanban" },
             { id: "leads", label: "Lista de Leads", icon: Users, href: "/leads" },
             { id: "arquivados", label: "Arquivados", icon: Archive, href: "/arquivados" },
@@ -72,7 +74,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
     const roleLabel = ROLE_LABELS[user?.role ?? ""] ?? user?.role ?? "—";
     const displayName = user?.name ?? user?.email ?? "Utilizador";
 
-    const handleNavigate = (id: NavItemId) => {
+    const handleNavigate = (id: any) => {
         navigate(id);
         if (onClose) onClose(); // Fecha no mobile após clicar
     };

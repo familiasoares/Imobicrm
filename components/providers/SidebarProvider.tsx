@@ -7,6 +7,7 @@ import React, { createContext, useContext, useState, useCallback } from "react";
 // -----------------------------------------------------------------------
 export type NavItemId =
     | "dashboard"
+    | "agenda"     // 👈 Ajuste Fino: Agenda adicionada aqui!
     | "kanban"
     | "leads"
     | "arquivados"

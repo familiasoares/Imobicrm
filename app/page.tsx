@@ -5,10 +5,18 @@ import {
     CheckCircle2,
     XCircle,
     Activity,
-    Plus
+    CalendarCheck,
+    AlertCircle,
+    Clock,
+    Circle,
+    MessageCircle,
+    Phone,
+    Home
 } from "lucide-react";
 import { getDashboardData } from "@/app/actions/dashboard.actions";
+import { getTasks, toggleTaskCompletion } from "@/app/actions/task.actions"; // 👈 Nossas novas ações da agenda
 import { DashboardHeader } from "./DashboardHeader";
+import Link from "next/link";
 
 function timeAgo(date: Date) {
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
@@ -38,9 +46,38 @@ function StatCard({ icon: Icon, label, value, sub, color }: any) {
     );
 }
 
-export default async function DashboardPage() {
-    const data = await getDashboardData();
+// Ícones dinâmicos para as tarefas
+const getTaskIcon = (tipo: string) => {
+    switch (tipo) {
+        case "LIGAR": return <Phone className="h-3.5 w-3.5 text-emerald-400" />;
+        case "VISITA": return <Home className="h-3.5 w-3.5 text-blue-400" />;
+        case "ENVIAR_IMOVEIS": return <MessageCircle className="h-3.5 w-3.5 text-purple-400" />;
+        default: return <Clock className="h-3.5 w-3.5 text-cyan-400" />;
+    }
+};
 
+export default async function DashboardPage() {
+    // Busca dados simultaneamente
+    const [data, tasks] = await Promise.all([
+        getDashboardData(),
+        getTasks()
+    ]);
+
+    // Lógica das Tarefas (Foco no Hoje e Atrasadas)
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const amanhã = new Date(hoje);
+    amanhã.setDate(amanhã.getDate() + 1);
+
+    const pendentes = tasks.filter((t: any) => !t.concluida);
+    const tarefasAtrasadas = pendentes.filter((t: any) => new Date(t.dataAgendada) < hoje);
+    const tarefasHoje = pendentes.filter((t: any) => new Date(t.dataAgendada) >= hoje && new Date(t.dataAgendada) < amanhã);
+
+    // Junta as atrasadas com as de hoje e pega as 4 mais urgentes
+    const tarefasUrgentes = [...tarefasAtrasadas, ...tarefasHoje].slice(0, 4);
+
+    // Lógica do Funil e Cards (Seu código original mantido intacto)
     const STATUS_CONFIG: any = {
         NOVO_LEAD: { label: "Novo Lead", color: "#6366f1" },
         EM_ATENDIMENTO: { label: "Em Atendimento", color: "#3b82f6" },
@@ -64,14 +101,98 @@ export default async function DashboardPage() {
     ];
 
     return (
-        <div className="space-y-8 max-w-7xl mx-auto p-4 sm:p-0">
-            {/* O cabeçalho foi extraído para um componente cliente */}
+        <div className="space-y-8 max-w-7xl mx-auto p-4 sm:p-0 animate-fade-in">
             <DashboardHeader />
 
+            {/* 1. CARDS DE ESTATÍSTICA */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {cards.map(c => <StatCard key={c.label} {...c} />)}
             </div>
 
+            {/* 2. WIDGET: MEU DIA (TAREFAS URGENTES) */}
+            <div className="glass-card p-6 border-l-4 border-l-cyan-500 flex flex-col gap-4 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-16 bg-cyan-500/5 blur-3xl rounded-full pointer-events-none" />
+
+                <div className="flex items-center justify-between z-10">
+                    <div className="flex items-center gap-3">
+                        <CalendarCheck className="h-5 w-5 text-cyan-400" />
+                        <h3 className="text-sm font-bold text-white uppercase tracking-widest">Meu Dia</h3>
+
+                        {(tarefasAtrasadas.length > 0 || tarefasHoje.length > 0) && (
+                            <div className="flex gap-2 ml-2">
+                                {tarefasAtrasadas.length > 0 && (
+                                    <span className="flex items-center gap-1 text-[10px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded border border-red-500/20 font-bold">
+                                        <AlertCircle className="h-3 w-3" /> {tarefasAtrasadas.length} Atrasadas
+                                    </span>
+                                )}
+                                {tarefasHoje.length > 0 && (
+                                    <span className="flex items-center gap-1 text-[10px] bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded border border-cyan-500/20 font-bold">
+                                        <Clock className="h-3 w-3" /> {tarefasHoje.length} Para Hoje
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <Link href="/agenda" className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 transition-colors uppercase tracking-widest bg-cyan-500/5 px-3 py-1.5 rounded-lg border border-cyan-500/10">
+                        Ver Agenda Completa
+                    </Link>
+                </div>
+
+                <div className="z-10 mt-2">
+                    {tarefasUrgentes.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-6 bg-white/[0.02] rounded-xl border border-white/[0.05] border-dashed">
+                            <CheckCircle2 className="h-8 w-8 text-emerald-500/50 mb-2" />
+                            <p className="text-sm text-slate-300 font-bold">Tudo limpo por hoje!</p>
+                            <p className="text-xs text-slate-500">Inbox Zero alcançado com sucesso.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {tarefasUrgentes.map((task: any) => {
+                                const isAtrasada = new Date(task.dataAgendada) < hoje;
+                                return (
+                                    <div key={task.id} className="flex items-center justify-between p-3 bg-[#0a0a0a] border border-white/10 rounded-xl hover:bg-white/[0.03] transition-colors group">
+                                        <div className="flex items-start gap-3 min-w-0 w-full">
+
+                                            {/* Botão de concluir direto da dashboard */}
+                                            <form action={toggleTaskCompletion.bind(null, task.id, true)} className="mt-0.5">
+                                                <button type="submit" className="text-slate-600 hover:text-emerald-400 transition-colors">
+                                                    <Circle className="h-5 w-5" />
+                                                </button>
+                                            </form>
+
+                                            <div className="flex flex-col flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    {/* Ícone da Tarefa pequeno ao lado do nome */}
+                                                    <span className="opacity-80 shrink-0">{getTaskIcon(task.tipo)}</span>
+
+                                                    {/* NOME DO CLIENTE EM DESTAQUE */}
+                                                    <p className="text-sm font-black text-white truncate">
+                                                        {task.lead.nome}
+                                                    </p>
+                                                </div>
+
+                                                {/* A anotação que você fez */}
+                                                <p className="text-[11px] text-slate-400 truncate mt-1">
+                                                    {task.titulo}
+                                                </p>
+
+                                                {/* Badge de status (Hoje/Atrasada) */}
+                                                <p className="text-[10px] mt-1.5 flex items-center gap-1">
+                                                    <span className={`font-bold px-1.5 py-0.5 rounded-sm bg-white/5 border ${isAtrasada ? "text-red-400 border-red-500/20" : "text-cyan-400 border-cyan-500/20"}`}>
+                                                        {isAtrasada ? "⚠️ Atrasada" : "⚡ Hoje"}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* 3. FUNIL E ATIVIDADES */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="glass-card p-6 flex flex-col gap-6">
                     <h3 className="text-xs font-bold text-white uppercase tracking-widest">Funil de Vendas</h3>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useTransition, useRef } from "react";
-import { GripVertical, Sparkles, Plus, Clock, ArrowRightLeft } from "lucide-react";
+import { GripVertical, Sparkles, Plus, Clock, ArrowRightLeft, Search, X } from "lucide-react"; // 👈 Importado Search e X
 import { updateLeadStatus } from "@/app/actions/lead.actions";
 import { useModal } from "@/components/providers/ModalProvider";
 
@@ -28,7 +28,6 @@ function LeadCard({ lead, onDragStart, onEdit, onStatusChange }: any) {
             className="relative rounded-xl border border-white/[0.08] bg-[#0a0a0a] p-4 cursor-pointer active:cursor-grabbing hover:border-cyan-500/50 hover:bg-[#0d0d0d] hover:shadow-[0_0_20px_rgba(6,182,212,0.15)] group transition-all"
         >
             <div className="flex items-start gap-3 select-none">
-                {/* Grip visível apenas no PC para indicar arraste */}
                 <div className="mt-1 cursor-grab active:cursor-grabbing hidden sm:block">
                     <GripVertical className="h-4 w-4 text-slate-600 group-hover:text-cyan-400 transition-colors" />
                 </div>
@@ -53,10 +52,9 @@ function LeadCard({ lead, onDragStart, onEdit, onStatusChange }: any) {
                 </span>
             </div>
 
-            {/* 🚀 SELETOR DE STATUS SEMPRE VISÍVEL (Melhora mobile e agiliza PC) */}
             <div
                 className="mt-4 pt-3 border-t border-white/[0.06]"
-                onClick={(e) => e.stopPropagation()} // Blinda o clique para não abrir o modal
+                onClick={(e) => e.stopPropagation()}
             >
                 <div className="relative group/select">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
@@ -88,6 +86,7 @@ function LeadCard({ lead, onDragStart, onEdit, onStatusChange }: any) {
 
 export function KanbanBoard({ initialLeads }: { initialLeads: any[] }) {
     const [leads, setLeads] = useState(initialLeads);
+    const [searchTerm, setSearchTerm] = useState(""); // 👈 Estado da Busca
     const [dragId, setDragId] = useState<string | null>(null);
     const [dragOverCol, setDragOverCol] = useState<LeadStatus | null>(null);
     const [isPending, startTransition] = useTransition();
@@ -97,6 +96,13 @@ export function KanbanBoard({ initialLeads }: { initialLeads: any[] }) {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => { setLeads(initialLeads); }, [initialLeads]);
+
+    // Lógica de Filtragem
+    const filteredLeads = leads.filter(lead =>
+        lead.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.interesse.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.telefone.includes(searchTerm)
+    );
 
     useEffect(() => {
         const el = scrollRef.current;
@@ -143,10 +149,33 @@ export function KanbanBoard({ initialLeads }: { initialLeads: any[] }) {
 
     return (
         <div className="flex flex-col h-[calc(100vh-140px)] animate-fade-in">
+            {/* Header com Busca Integrada */}
             <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-                <h1 className="text-xl font-black text-white flex items-center gap-2 tracking-tight">
-                    <Sparkles className="h-5 w-5 text-cyan-400" /> MEU FUNIL
-                </h1>
+                <div className="flex items-center gap-6 flex-1 min-w-[300px]">
+                    <h1 className="text-xl font-black text-white flex items-center gap-2 tracking-tight shrink-0">
+                        <Sparkles className="h-5 w-5 text-cyan-400" /> MEU FUNIL
+                    </h1>
+
+                    {/* 🚀 BARRA DE BUSCA */}
+                    <div className="relative flex-1 max-w-md group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+                        <input
+                            type="text"
+                            placeholder="Buscar nome, interesse ou telefone..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-500/5 transition-all"
+                        />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm("")}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-white/10 text-slate-500 transition-colors"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        )}
+                    </div>
+                </div>
 
                 <div className="flex items-center gap-3">
                     <button
@@ -171,49 +200,52 @@ export function KanbanBoard({ initialLeads }: { initialLeads: any[] }) {
                 className="flex-1 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
             >
                 <div className="flex gap-5 h-full min-w-max px-1">
-                    {visibleColumns.map((col) => (
-                        <div
-                            key={col.id}
-                            className="flex flex-col w-[300px] shrink-0"
-                            onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.id); }}
-                            onDragLeave={() => setDragOverCol(null)}
-                            onDrop={(e) => handleDrop(e, col.id)}
-                        >
+                    {visibleColumns.map((col) => {
+                        const leadsInCol = filteredLeads.filter(l => l.status === col.id); // 👈 Usa a lista filtrada
+                        return (
                             <div
-                                className="flex items-center justify-between p-3 border-t-[3px] bg-[#0d0d0d] rounded-t-xl"
-                                style={{ borderTopColor: col.color }}
+                                key={col.id}
+                                className="flex flex-col w-[300px] shrink-0"
+                                onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.id); }}
+                                onDragLeave={() => setDragOverCol(null)}
+                                onDrop={(e) => handleDrop(e, col.id)}
                             >
-                                <span className="text-[11px] font-black text-slate-200 uppercase tracking-widest">
-                                    {col.label}
-                                </span>
-                                <span className="flex items-center justify-center bg-white/5 px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 border border-white/10">
-                                    {leads.filter(l => l.status === col.id).length}
-                                </span>
-                            </div>
+                                <div
+                                    className="flex items-center justify-between p-3 border-t-[3px] bg-[#0d0d0d] rounded-t-xl"
+                                    style={{ borderTopColor: col.color }}
+                                >
+                                    <span className="text-[11px] font-black text-slate-200 uppercase tracking-widest">
+                                        {col.label}
+                                    </span>
+                                    <span className="flex items-center justify-center bg-white/5 px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 border border-white/10">
+                                        {leadsInCol.length}
+                                    </span>
+                                </div>
 
-                            <div
-                                className={`flex-1 space-y-3 p-3 border-x border-b border-white/[0.04] bg-[#050505] rounded-b-xl transition-all duration-200 overflow-y-auto scrollbar-none
-                                    ${dragOverCol === col.id ? "bg-cyan-500/5 border-cyan-500/30 shadow-[inset_0_0_20px_rgba(6,182,212,0.05)]" : ""}`
-                                }
-                            >
-                                {leads.filter(l => l.status === col.id).map((lead) => (
-                                    <LeadCard
-                                        key={lead.id}
-                                        lead={lead}
-                                        onDragStart={handleDragStart}
-                                        onEdit={openEdit}
-                                        onStatusChange={executeStatusChange}
-                                    />
-                                ))}
+                                <div
+                                    className={`flex-1 space-y-3 p-3 border-x border-b border-white/[0.04] bg-[#050505] rounded-b-xl transition-all duration-200 overflow-y-auto scrollbar-none
+                                        ${dragOverCol === col.id ? "bg-cyan-500/5 border-cyan-500/30 shadow-[inset_0_0_20px_rgba(6,182,212,0.05)]" : ""}`
+                                    }
+                                >
+                                    {leadsInCol.map((lead) => (
+                                        <LeadCard
+                                            key={lead.id}
+                                            lead={lead}
+                                            onDragStart={handleDragStart}
+                                            onEdit={openEdit}
+                                            onStatusChange={executeStatusChange}
+                                        />
+                                    ))}
 
-                                {leads.filter(l => l.status === col.id).length === 0 && (
-                                    <div className="h-24 rounded-xl border border-dashed border-white/10 flex items-center justify-center text-[10px] font-medium text-slate-600 uppercase tracking-widest">
-                                        Soltar Lead Aqui
-                                    </div>
-                                )}
+                                    {leadsInCol.length === 0 && (
+                                        <div className="h-24 rounded-xl border border-dashed border-white/10 flex items-center justify-center text-[10px] font-medium text-slate-600 uppercase tracking-widest text-center px-4">
+                                            {searchTerm ? "Nenhum resultado" : "Vazio"}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>
