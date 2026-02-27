@@ -53,18 +53,16 @@ export type UpdateLeadData = {
     caracteristicasDesejadas?: string;
 };
 
-// 🚀 FUNÇÃO DE ATUALIZAÇÃO CORRIGIDA (AUDITORIA BLINDADA)
+// 🚀 FUNÇÃO DE ATUALIZAÇÃO CORRIGIDA PARA DEPLOY (SEM ERRO DE TIPO)
 export async function updateLead(leadId: string, data: UpdateLeadData) {
     const session = await requireSession();
 
-    // 1. Busca o estado atual para comparação
     const existing = await prisma.lead.findFirst({
         where: { id: leadId, tenantId: session.user.tenantId }
     });
 
     if (!existing) throw new Error("Lead não encontrado.");
 
-    // 2. Mapeia o que mudou
     const mudancas: string[] = [];
     const camposParaMonitorar: (keyof UpdateLeadData)[] = [
         "nome", "telefone", "ddd", "cidade", "interesse",
@@ -84,18 +82,16 @@ export async function updateLead(leadId: string, data: UpdateLeadData) {
 
     camposParaMonitorar.forEach((campo) => {
         const valorNovo = data[campo]?.toString().trim() || "";
-        const valorAntigo = existing[campo as keyof typeof existing]?.toString().trim() || "";
+        const valorAntigo = (existing[campo as keyof typeof existing] as any)?.toString().trim() || "";
 
-        // Só loga se houver mudança real de conteúdo
         if (data[campo] !== undefined && valorNovo !== valorAntigo) {
             mudancas.push(`${formatLabel(campo)}: de "${valorAntigo || "Vazio"}" para "${valorNovo || "Vazio"}"`);
         }
     });
 
-    // 3. Gravação em transação (segurança total)
     if (mudancas.length > 0) {
-        // CORREÇÃO: Pega o nome correto da sessão para evitar 'undefined'
-        const userName = session.user.name || session.user.nome || "Corretor";
+        // 🚀 AJUSTE PARA DEPLOY: Usando apenas .name (padronizado NextAuth)
+        const userName = session.user.name || session.user.email?.split('@')[0] || "Corretor";
         const descricaoLog = `${userName} alterou: ${mudancas.join(" | ")}`;
 
         await prisma.$transaction([
@@ -119,7 +115,7 @@ export async function updateLead(leadId: string, data: UpdateLeadData) {
                     leadId,
                     userId: session.user.id,
                     statusAntes: existing.status,
-                    statusDepois: existing.status, // 🚀 REMOVIDO statusAfter QUE DAVA ERRO
+                    statusDepois: existing.status,
                     observacao: descricaoLog,
                 },
             }),
@@ -130,8 +126,6 @@ export async function updateLead(leadId: string, data: UpdateLeadData) {
     revalidatePath("/kanban");
     revalidatePath("/");
 }
-
-// --- RESTANTE DAS FUNÇÕES MANTIDAS E REVISADAS ---
 
 export type CreateLeadData = {
     nome: string;
@@ -182,6 +176,8 @@ export async function updateLeadStatus(leadId: string, newStatus: LeadStatus) {
     if (!current) throw new Error("Lead não encontrado.");
     if (current.status === newStatus) return;
 
+    const userName = session.user.name || session.user.email?.split('@')[0] || "Corretor";
+
     await prisma.$transaction([
         prisma.lead.update({
             where: { id: leadId },
@@ -193,7 +189,7 @@ export async function updateLeadStatus(leadId: string, newStatus: LeadStatus) {
                 userId: session.user.id,
                 statusAntes: current.status,
                 statusDepois: newStatus,
-                observacao: `${session.user.name || session.user.nome} moveu o lead para ${newStatus.replace('_', ' ')}`,
+                observacao: `${userName} moveu o lead para ${newStatus.replace('_', ' ')}`,
             },
         }),
     ]);
