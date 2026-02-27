@@ -138,16 +138,20 @@ export async function updateLeadStatus(leadId: string, newStatus: LeadStatus) {
     revalidatePath("/");
 }
 
+// ============================================================================
+// 🚀 ADD LEAD NOTE + GATILHO DE AUTOMAÇÃO (NLP)
+// ============================================================================
 export async function addLeadNote(leadId: string, observacao: string) {
     const session = await requireSession();
 
     const current = await prisma.lead.findFirst({
         where: { id: leadId, tenantId: session.user.tenantId },
-        select: { status: true },
+        select: { status: true, tenantId: true }, // Adicionado tenantId para usar na Task
     });
 
     if (!current) throw new Error("Lead não encontrado ou sem permissão.");
 
+    // 1. Salva o histórico normalmente
     await prisma.leadHistory.create({
         data: {
             leadId,
@@ -156,6 +160,24 @@ export async function addLeadNote(leadId: string, observacao: string) {
             observacao,
         },
     });
+
+    // 2. Aciona o Cérebro de Automação
+    const acaoDetectada = identificarAcao(observacao);
+    const dataDetectada = calcularDataAgendamento(observacao);
+
+    // Se encontrou uma intenção clara de tarefa e uma data válida, cria a Task!
+    if (acaoDetectada && dataDetectada) {
+        await prisma.task.create({
+            data: {
+                leadId: leadId,
+                tenantId: current.tenantId,
+                titulo: observacao,
+                tipo: acaoDetectada,
+                dataAgendada: dataDetectada,
+                prioridade: 1,
+            }
+        });
+    }
 
     revalidatePath("/leads");
     revalidatePath("/kanban");
@@ -212,4 +234,96 @@ export async function deleteLeadForever(leadId: string) {
 
     revalidatePath("/arquivados");
     revalidatePath("/");
+}
+
+// ============================================================================
+// MOTOR DE AUTOMAÇÃO: PROCESSAMENTO DE LINGUAGEM NATURAL (NLP) BASEADO EM REGRAS
+// ============================================================================
+
+function calcularDataAgendamento(texto: string): Date | null {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    let dataAlvo = new Date(hoje);
+    let horaAlvo = 14; // Padrão: 14h30
+    let minutoAlvo = 30;
+
+    const textoLower = texto.toLowerCase();
+
+    // 1. Detectar Período do Dia (Horário)
+    if (textoLower.match(/\b(manhã|manha|cedo)\b/)) {
+        horaAlvo = 9; minutoAlvo = 0;
+    } else if (textoLower.match(/\b(tarde)\b/)) {
+        horaAlvo = 14; minutoAlvo = 30;
+    } else if (textoLower.match(/\b(noite)\b/)) {
+        horaAlvo = 19; minutoAlvo = 30;
+    }
+
+    // 2. Detectar Dia Exato (Ex: "Dia 20")
+    const matchDia = textoLower.match(/\bdia\s*(\d{1,2})\b/);
+    if (matchDia) {
+        const dia = parseInt(matchDia[1], 10);
+        if (dia >= 1 && dia <= 31) {
+            dataAlvo.setDate(dia);
+            if (dataAlvo < hoje) {
+                dataAlvo.setMonth(dataAlvo.getMonth() + 1);
+            }
+            dataAlvo.setHours(horaAlvo, minutoAlvo, 0, 0);
+            return dataAlvo;
+        }
+    }
+
+    // 3. Detectar Termos Relativos
+    if (textoLower.match(/\b(hoje)\b/)) {
+        // Mantém hoje
+    } else if (textoLower.match(/\b(amanhã|amanha)\b/)) {
+        dataAlvo.setDate(hoje.getDate() + 1);
+    } else if (textoLower.match(/\b(depois de amanhã|depois de amanha)\b/)) {
+        dataAlvo.setDate(hoje.getDate() + 2);
+    }
+    // 4. Detectar Dias da Semana (0 = Domingo, 1 = Segunda, ...)
+    else {
+        const diasSemana: Record<string, number> = {
+            'domingo': 0, 'segunda': 1, 'terça': 2, 'terca': 2,
+            'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6, 'sabado': 6
+        };
+
+        let diaEncontrado = -1;
+        for (const [chave, valor] of Object.entries(diasSemana)) {
+            if (textoLower.includes(chave)) {
+                diaEncontrado = valor;
+                break;
+            }
+        }
+
+        if (diaEncontrado !== -1) {
+            const diaAtual = hoje.getDay();
+            let diasParaAdicionar = diaEncontrado - diaAtual;
+
+            if (diasParaAdicionar <= 0) {
+                diasParaAdicionar += 7;
+            }
+            dataAlvo.setDate(hoje.getDate() + diasParaAdicionar);
+        } else {
+            return null;
+        }
+    }
+
+    dataAlvo.setHours(horaAlvo, minutoAlvo, 0, 0);
+    return dataAlvo;
+}
+
+function identificarAcao(texto: string): string | null {
+    const t = texto.toLowerCase();
+
+    // Ordem de prioridade importa (Enviar imóveis vem antes de Enviar genérico)
+    if (t.match(/\b(enviar imoveis|enviar imóveis|mandar imoveis|mandar opções|enviar opcoes)\b/)) return "ENVIAR_IMOVEIS";
+    if (t.match(/\b(ligar|call|telefonar)\b/)) return "LIGAR";
+    if (t.match(/\b(visita|visitar)\b/)) return "VISITA";
+    if (t.match(/\b(reunião|reuniao|conversar)\b/)) return "REUNIAO";
+    if (t.match(/\b(retornar|feedback)\b/)) return "RETORNAR";
+    if (t.match(/\b(escritura)\b/)) return "ESCRITURA";
+    if (t.match(/\b(proposta)\b/)) return "PROPOSTA";
+    if (t.match(/\b(enviar|mandar)\b/)) return "ENVIAR";
+
+    return null;
 }
