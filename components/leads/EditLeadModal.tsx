@@ -111,7 +111,6 @@ export function EditLeadModal() {
         if (errors[field]) setErrors((e) => ({ ...e, [field]: undefined }));
     };
 
-    // 🚀 FUNÇÃO DE SALVAR CORRIGIDA
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
         if (!form) return;
@@ -131,10 +130,8 @@ export function EditLeadModal() {
 
                 toast("Lead atualizado com sucesso!", "success");
 
-                // 1º Pede para o NextJS buscar os dados novos do banco
                 router.refresh();
 
-                // 2º Dá 400 milissegundos para a tela de trás atualizar ANTES de fechar o modal
                 setTimeout(() => {
                     close();
                 }, 400);
@@ -224,97 +221,100 @@ export function EditLeadModal() {
             <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 min-h-full">
 
-                    {/* ESQUERDA: DADOS */}
-                    <div className="lg:col-span-4 xl:col-span-3 p-6 sm:p-10 border-b lg:border-b-0 lg:border-r border-white/[0.06] bg-[#0a0a0a]">
-                        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <User className="h-4 w-4" /> Dados do Contato
-                        </h3>
+                    {/* ----------------- ESQUERDA: DADOS (AGORA MAIS LARGO: col-span-5) ----------------- */}
+                    <div className="lg:col-span-5 p-6 sm:p-10 border-b lg:border-b-0 lg:border-r border-white/[0.06] bg-[#0a0a0a]">
+                        <div className="max-w-2xl mx-auto w-full">
+                            <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                <User className="h-4 w-4" /> Dados do Contato
+                            </h3>
 
-                        <form onSubmit={handleSave} className="space-y-5">
-                            <EField label="Nome Completo" error={errors.nome} icon={<User className="h-4 w-4" />}>
-                                <input
-                                    ref={firstInputRef} type="text" value={form.nome} onChange={(e) => set("nome", e.target.value)} disabled={isPending}
-                                    className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 ${errors.nome ? "border-red-500/50" : ""}`}
-                                />
-                            </EField>
-
-                            <div className="flex gap-4">
-                                <div className="w-24 flex-shrink-0">
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">DDD</label>
+                            <form onSubmit={handleSave} className="space-y-5">
+                                <EField label="Nome Completo" error={errors.nome} icon={<User className="h-4 w-4" />}>
                                     <input
-                                        type="text" maxLength={2} value={form.ddd} onChange={(e) => set("ddd", e.target.value.replace(/\D/g, ''))} disabled={isPending}
-                                        className={`glass-input w-full bg-[#050505] border-white/10 text-center text-sm focus:border-cyan-500/50 ${errors.ddd ? "border-red-500/50" : ""}`}
-                                    />
-                                </div>
-                                <EField label="Telefone / WhatsApp" error={errors.telefone} icon={<Phone className="h-4 w-4" />} className="flex-1">
-                                    <input
-                                        type="tel" value={form.telefone} onChange={(e) => set("telefone", e.target.value)} disabled={isPending}
-                                        className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 ${errors.telefone ? "border-red-500/50" : ""}`}
+                                        ref={firstInputRef} type="text" value={form.nome} onChange={(e) => set("nome", e.target.value)} disabled={isPending}
+                                        className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 ${errors.nome ? "border-red-500/50" : ""}`}
                                     />
                                 </EField>
-                            </div>
 
-                            <EField label="Cidade" error={errors.cidade} icon={<MapPin className="h-4 w-4" />}>
-                                <input
-                                    type="text" value={form.cidade} onChange={(e) => set("cidade", e.target.value)} disabled={isPending}
-                                    className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 ${errors.cidade ? "border-red-500/50" : ""}`}
-                                />
-                            </EField>
+                                <div className="flex gap-4">
+                                    <div className="w-24 flex-shrink-0">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">DDD</label>
+                                        <input
+                                            type="text" maxLength={2} value={form.ddd} onChange={(e) => set("ddd", e.target.value.replace(/\D/g, ''))} disabled={isPending}
+                                            className={`glass-input w-full bg-[#050505] border-white/10 text-center text-sm focus:border-cyan-500/50 ${errors.ddd ? "border-red-500/50" : ""}`}
+                                        />
+                                    </div>
+                                    <EField label="Telefone / WhatsApp" error={errors.telefone} icon={<Phone className="h-4 w-4" />} className="flex-1">
+                                        <input
+                                            type="tel" value={form.telefone} onChange={(e) => set("telefone", e.target.value)} disabled={isPending}
+                                            className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 ${errors.telefone ? "border-red-500/50" : ""}`}
+                                        />
+                                    </EField>
+                                </div>
 
-                            <EField label="Interesse Principal" error={errors.interesse} icon={<Home className="h-4 w-4" />}>
-                                <select
-                                    value={form.interesse} onChange={(e) => set("interesse", e.target.value)} disabled={isPending}
-                                    className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 ${errors.interesse ? "border-red-500/50" : ""}`}
+                                <EField label="Cidade" error={errors.cidade} icon={<MapPin className="h-4 w-4" />}>
+                                    <input
+                                        type="text" value={form.cidade} onChange={(e) => set("cidade", e.target.value)} disabled={isPending}
+                                        className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 ${errors.cidade ? "border-red-500/50" : ""}`}
+                                    />
+                                </EField>
+
+                                <EField label="Interesse Principal" error={errors.interesse} icon={<Home className="h-4 w-4" />}>
+                                    <select
+                                        value={form.interesse} onChange={(e) => set("interesse", e.target.value)} disabled={isPending}
+                                        className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 ${errors.interesse ? "border-red-500/50" : ""}`}
+                                    >
+                                        <option value="">Selecione…</option>
+                                        {INTERESSE_OPTIONS.map((opt) => <option key={opt} value={opt} className="bg-[#0a0a0a]">{opt}</option>)}
+                                    </select>
+                                </EField>
+
+                                <a
+                                    href={`https://wa.me/55${form.ddd}${form.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20 transition-colors w-full justify-center mt-2"
                                 >
-                                    <option value="">Selecione…</option>
-                                    {INTERESSE_OPTIONS.map((opt) => <option key={opt} value={opt} className="bg-[#0a0a0a]">{opt}</option>)}
-                                </select>
-                            </EField>
+                                    <ExternalLink className="h-3.5 w-3.5" /> Chamar no WhatsApp
+                                </a>
 
-                            <a
-                                href={`https://wa.me/55${form.ddd}${form.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20 transition-colors w-full justify-center"
-                            >
-                                <ExternalLink className="h-3.5 w-3.5" /> Chamar no WhatsApp
-                            </a>
+                                <hr className="border-white/[0.06] my-6" />
 
-                            <hr className="border-white/[0.06] my-6" />
+                                <div className="space-y-1.5">
+                                    <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                        <FileText className="h-3.5 w-3.5" /> Perfil de Busca / Observações Fixas
+                                    </label>
+                                    <textarea
+                                        value={form.observacoes}
+                                        onChange={(e) => set("observacoes", e.target.value)}
+                                        placeholder="Ex: Cliente busca apartamento de 3 dormitórios..."
+                                        rows={5}
+                                        className="glass-input w-full bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 resize-none p-3"
+                                        disabled={isPending}
+                                    />
+                                </div>
 
-                            <div className="space-y-1.5">
-                                <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                    <FileText className="h-3.5 w-3.5" /> Perfil de Busca / Observações Fixas
-                                </label>
-                                <textarea
-                                    value={form.observacoes}
-                                    onChange={(e) => set("observacoes", e.target.value)}
-                                    placeholder="Ex: Cliente busca apartamento de 3 dormitórios..."
-                                    rows={5}
-                                    className="glass-input w-full bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 resize-none p-3"
-                                    disabled={isPending}
-                                />
-                            </div>
+                                <div className="flex flex-col gap-3 pt-4">
+                                    <button
+                                        type="submit" disabled={isPending}
+                                        className="w-full flex items-center justify-center gap-2 py-3 text-xs font-bold text-black bg-cyan-400 rounded-lg hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] uppercase tracking-wide disabled:opacity-60"
+                                    >
+                                        {isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Salvando...</> : "Salvar Alterações"}
+                                    </button>
 
-                            <div className="flex flex-col gap-3 pt-4">
-                                <button
-                                    type="submit" disabled={isPending}
-                                    className="w-full flex items-center justify-center gap-2 py-3 text-xs font-bold text-black bg-cyan-400 rounded-lg hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] uppercase tracking-wide disabled:opacity-60"
-                                >
-                                    {isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Salvando...</> : "Salvar Alterações"}
-                                </button>
-
-                                <button
-                                    type="button" onClick={handleArchive} disabled={isPending}
-                                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-bold rounded-lg transition-all ${archiveConfirm ? "bg-amber-500/20 text-amber-400 border border-amber-500/50" : "bg-transparent text-slate-500 hover:bg-white/5 hover:text-white"}`}
-                                >
-                                    <Archive className="h-4 w-4" /> {archiveConfirm ? "Confirmar Arquivamento?" : "Arquivar Lead"}
-                                </button>
-                            </div>
-                        </form>
+                                    <button
+                                        type="button" onClick={handleArchive} disabled={isPending}
+                                        className={`w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-bold rounded-lg transition-all ${archiveConfirm ? "bg-amber-500/20 text-amber-400 border border-amber-500/50" : "bg-transparent text-slate-500 hover:bg-white/5 hover:text-white"}`}
+                                    >
+                                        <Archive className="h-4 w-4" /> {archiveConfirm ? "Confirmar Arquivamento?" : "Arquivar Lead"}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
 
-                    {/* DIREITA: TIMELINE */}
-                    <div className="lg:col-span-8 xl:col-span-9 p-6 sm:p-10 bg-[#080808] flex flex-col">
-                        <div className="max-w-4xl w-full">
+                    {/* ----------------- DIREITA: TIMELINE (AGORA MAIS EQUILIBRADA: col-span-7) ----------------- */}
+                    <div className="lg:col-span-7 p-6 sm:p-10 bg-[#080808] flex flex-col">
+                        {/* mx-auto garante que em telas ultra-wide a timeline fique no meio da coluna direita */}
+                        <div className="max-w-4xl mx-auto w-full">
                             <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                                 <Clock className="h-4 w-4" /> Histórico e Timeline
                             </h3>
