@@ -78,6 +78,7 @@ export function EditLeadModal() {
     const lead = isOpen ? modal.lead : null;
     const leadData = lead as any;
 
+    // 🚀 BLOCO ATUALIZADO COM A TRAVA MOBILE
     useEffect(() => {
         if (!isOpen || !leadData) {
             setForm(null);
@@ -99,7 +100,11 @@ export function EditLeadModal() {
         setLocalHistory(leadData.history || []);
 
         document.body.style.overflow = 'hidden';
-        setTimeout(() => firstInputRef.current?.focus(), 60);
+
+        // Só dá auto-focus se for computador (evita o teclado subir e empurrar a tela)
+        if (window.innerWidth > 768) {
+            setTimeout(() => firstInputRef.current?.focus(), 60);
+        }
 
         return () => { document.body.style.overflow = 'unset'; };
     }, [isOpen, leadData]);
@@ -129,7 +134,6 @@ export function EditLeadModal() {
                 });
 
                 toast("Lead atualizado com sucesso!", "success");
-
                 router.refresh();
 
                 setTimeout(() => {
@@ -221,7 +225,7 @@ export function EditLeadModal() {
             <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 min-h-full">
 
-                    {/* ----------------- ESQUERDA: DADOS (AGORA MAIS LARGO: col-span-5) ----------------- */}
+                    {/* ESQUERDA: DADOS (5 colunas) */}
                     <div className="lg:col-span-5 p-6 sm:p-10 border-b lg:border-b-0 lg:border-r border-white/[0.06] bg-[#0a0a0a]">
                         <div className="max-w-2xl mx-auto w-full">
                             <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-6 flex items-center gap-2">
@@ -311,9 +315,8 @@ export function EditLeadModal() {
                         </div>
                     </div>
 
-                    {/* ----------------- DIREITA: TIMELINE (AGORA MAIS EQUILIBRADA: col-span-7) ----------------- */}
+                    {/* DIREITA: TIMELINE (7 colunas) */}
                     <div className="lg:col-span-7 p-6 sm:p-10 bg-[#080808] flex flex-col">
-                        {/* mx-auto garante que em telas ultra-wide a timeline fique no meio da coluna direita */}
                         <div className="max-w-4xl mx-auto w-full">
                             <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                                 <Clock className="h-4 w-4" /> Histórico e Timeline
