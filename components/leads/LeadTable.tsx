@@ -19,6 +19,7 @@ import {
     formatDate,
 } from "@/lib/mock-leads";
 import type { FilterValues } from "@/components/leads/FilterDrawer";
+import { useModal } from "@/components/providers/ModalProvider"; // 👈 Importamos o provedor de Modal
 
 // -----------------------------------------------------------------------
 // Types
@@ -53,8 +54,8 @@ function SortIcon({
 }) {
     if (field !== current) return <ChevronsUpDown className="h-3.5 w-3.5 text-slate-600" />;
     return dir === "asc"
-        ? <ChevronUp className="h-3.5 w-3.5 text-indigo-400" />
-        : <ChevronDown className="h-3.5 w-3.5 text-indigo-400" />;
+        ? <ChevronUp className="h-3.5 w-3.5 text-cyan-400" />
+        : <ChevronDown className="h-3.5 w-3.5 text-cyan-400" />;
 }
 
 // -----------------------------------------------------------------------
@@ -73,6 +74,9 @@ export function LeadTable({
     const [sortDir, setSortDir] = useState<SortDir>("desc");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
+
+    // 👈 Hook do Modal para podermos chamar o openEdit
+    const { openEdit } = useModal();
 
     // ---- Filter + Search ----
     const filtered = useMemo(() => {
@@ -125,7 +129,7 @@ export function LeadTable({
 
     const thClass =
         "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 select-none";
-    const thSortableClass = `${thClass} cursor-pointer hover:text-slate-300 transition-colors`;
+    const thSortableClass = `${thClass} cursor-pointer hover:text-cyan-400 transition-colors`;
 
     return (
         <div className="space-y-3">
@@ -153,7 +157,7 @@ export function LeadTable({
                                             if (el) el.indeterminate = !allPageSelected && someSelected;
                                         }}
                                         onChange={() => onToggleAll(pageIds)}
-                                        className="h-4 w-4 rounded border-slate-600 bg-transparent accent-indigo-500 cursor-pointer"
+                                        className="h-4 w-4 rounded border-slate-600 bg-transparent accent-cyan-500 cursor-pointer"
                                         aria-label="Selecionar todos desta página"
                                     />
                                 </th>
@@ -219,21 +223,25 @@ export function LeadTable({
                                     return (
                                         <tr
                                             key={lead.id}
-                                            className={`group transition-colors ${isSelected
-                                                    ? "bg-indigo-500/10"
-                                                    : idx % 2 === 0
-                                                        ? "bg-white/[0.01]"
-                                                        : ""
+                                            onClick={() => openEdit(lead)} // 👈 AQUI ABRIMOS O MODAL DE EDIÇÃO
+                                            className={`group transition-colors cursor-pointer hover:bg-white/[0.04] ${isSelected
+                                                ? "bg-cyan-500/10 hover:bg-cyan-500/15" // 👈 Atualizado para a cor Cyan
+                                                : idx % 2 === 0
+                                                    ? "bg-white/[0.01]"
+                                                    : ""
                                                 }`}
                                             style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
                                         >
                                             {/* Checkbox */}
-                                            <td className="px-4 py-3 print:hidden">
+                                            <td
+                                                className="px-4 py-3 print:hidden"
+                                                onClick={(e) => e.stopPropagation()} // 👈 AQUI BLINDAMOS O CLIQUE DO CHECKBOX
+                                            >
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
                                                     onChange={() => onToggleSelect(lead.id)}
-                                                    className="h-4 w-4 rounded border-slate-600 bg-transparent accent-indigo-500 cursor-pointer"
+                                                    className="h-4 w-4 rounded border-slate-600 bg-transparent accent-cyan-500 cursor-pointer"
                                                     aria-label={`Selecionar ${lead.nome}`}
                                                 />
                                             </td>
@@ -242,13 +250,13 @@ export function LeadTable({
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-3">
                                                     <div
-                                                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white print:hidden"
-                                                        style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}
+                                                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-black print:hidden"
+                                                        style={{ background: "linear-gradient(135deg,#22d3ee,#06b6d4)" }}
                                                     >
                                                         {lead.nome.charAt(0)}
                                                     </div>
                                                     <div>
-                                                        <p className="font-medium text-slate-100 leading-tight">
+                                                        <p className="font-medium text-slate-100 leading-tight group-hover:text-cyan-400 transition-colors">
                                                             {lead.nome}
                                                         </p>
                                                         <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
@@ -279,10 +287,10 @@ export function LeadTable({
                                             <td className="px-4 py-3">
                                                 <span
                                                     className={`badge ${lead.interesse === "Compra"
-                                                            ? "badge-active"
-                                                            : lead.interesse === "Locação"
-                                                                ? "badge-info"
-                                                                : "badge-warning"
+                                                        ? "badge-active"
+                                                        : lead.interesse === "Locação"
+                                                            ? "badge-info"
+                                                            : "badge-warning"
                                                         }`}
                                                 >
                                                     {lead.interesse}
@@ -360,8 +368,8 @@ export function LeadTable({
                                     key={item}
                                     onClick={() => setPage(item as number)}
                                     className={`flex h-8 min-w-[2rem] items-center justify-center rounded-lg border text-xs font-medium transition-colors ${safePage === item
-                                            ? "border-indigo-500/50 bg-indigo-500/15 text-indigo-400"
-                                            : "border-white/[0.07] text-slate-400 hover:bg-white/[0.05]"
+                                        ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-400" // 👈 Paginação Cyan
+                                        : "border-white/[0.07] text-slate-400 hover:bg-white/[0.05]"
                                         }`}
                                 >
                                     {item}
