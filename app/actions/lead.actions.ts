@@ -13,9 +13,6 @@ type LeadStatus =
     | "VENDA_FECHADA"
     | "VENDA_PERDIDA";
 
-// -----------------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------------
 async function requireSession() {
     const session = await getServerAuthSession();
     if (!session?.user?.tenantId) {
@@ -24,41 +21,29 @@ async function requireSession() {
     return session;
 }
 
-// -----------------------------------------------------------------------
-// getLeads — lista leads não-arquivados com histórico
-// -----------------------------------------------------------------------
 export async function getLeads() {
     const session = await requireSession();
 
-    const leads = await prisma.lead.findMany({
+    return prisma.lead.findMany({
         where: {
             tenantId: session.user.tenantId,
             isArquivado: false,
         },
         orderBy: { criadoEm: "desc" },
         include: {
-            corretor: {
-                select: { id: true, nome: true, email: true },
-            },
-            history: {
-                orderBy: { criadoEm: "desc" } // 👈 Traz o histórico do mais novo pro mais velho
-            }
+            corretor: { select: { id: true, nome: true, email: true } },
+            history: { orderBy: { criadoEm: "desc" } }
         },
     });
-
-    return leads;
 }
 
-// -----------------------------------------------------------------------
-// updateLead — edita os campos de um lead existente
-// -----------------------------------------------------------------------
 export type UpdateLeadData = {
     nome?: string;
     telefone?: string;
     ddd?: string;
     cidade?: string;
     interesse?: string;
-    observacoes?: string; // 👈 Adicionado campo de observações fixas
+    observacoes?: string;
 };
 
 export async function updateLead(leadId: string, data: UpdateLeadData) {
@@ -69,14 +54,10 @@ export async function updateLead(leadId: string, data: UpdateLeadData) {
         data: { ...data },
     });
 
-    revalidatePath("/leads");
-    revalidatePath("/kanban");
-    revalidatePath("/");
+    // 🚀 Super F5 que limpa o cache de toda a aplicação
+    revalidatePath("/", "layout");
 }
 
-// -----------------------------------------------------------------------
-// createLead — cria novo lead para o tenant logado
-// -----------------------------------------------------------------------
 export type CreateLeadData = {
     nome: string;
     telefone: string;
@@ -101,16 +82,10 @@ export async function createLead(data: CreateLeadData) {
         },
     });
 
-    revalidatePath("/leads");
-    revalidatePath("/kanban");
-    revalidatePath("/");
-
+    revalidatePath("/", "layout");
     return lead;
 }
 
-// -----------------------------------------------------------------------
-// updateLeadStatus — drag-and-drop do Kanban / mudança de coluna
-// -----------------------------------------------------------------------
 export async function updateLeadStatus(leadId: string, newStatus: LeadStatus) {
     const session = await requireSession();
 
@@ -136,14 +111,9 @@ export async function updateLeadStatus(leadId: string, newStatus: LeadStatus) {
         }),
     ]);
 
-    revalidatePath("/kanban");
-    revalidatePath("/leads");
-    revalidatePath("/");
+    revalidatePath("/", "layout");
 }
 
-// -----------------------------------------------------------------------
-// addLeadNote — adiciona uma anotação na timeline (Sem mudar status)
-// -----------------------------------------------------------------------
 export async function addLeadNote(leadId: string, observacao: string) {
     const session = await requireSession();
 
@@ -158,19 +128,14 @@ export async function addLeadNote(leadId: string, observacao: string) {
         data: {
             leadId,
             statusAntes: current.status,
-            statusDepois: current.status, // Status não muda, apenas a nota é salva
+            statusDepois: current.status,
             observacao,
         },
     });
 
-    revalidatePath("/kanban");
-    revalidatePath("/leads");
-    revalidatePath("/");
+    revalidatePath("/", "layout");
 }
 
-// -----------------------------------------------------------------------
-// archiveLead — soft-delete
-// -----------------------------------------------------------------------
 export async function archiveLead(leadId: string) {
     const session = await requireSession();
 
@@ -179,14 +144,9 @@ export async function archiveLead(leadId: string) {
         data: { isArquivado: true },
     });
 
-    revalidatePath("/leads");
-    revalidatePath("/kanban");
-    revalidatePath("/");
+    revalidatePath("/", "layout");
 }
 
-// -----------------------------------------------------------------------
-// getArchivedLeads — lista leads arquivados do tenant
-// -----------------------------------------------------------------------
 export async function getArchivedLeads() {
     const session = await requireSession();
 
@@ -197,14 +157,11 @@ export async function getArchivedLeads() {
         },
         orderBy: { updatedAt: "desc" },
         include: {
-            history: { orderBy: { criadoEm: "desc" } } // Traz o histórico também para os arquivados
+            history: { orderBy: { criadoEm: "desc" } }
         }
     });
 }
 
-// -----------------------------------------------------------------------
-// reactivateLead — tira do arquivo
-// -----------------------------------------------------------------------
 export async function reactivateLead(leadId: string) {
     const session = await requireSession();
 
@@ -213,14 +170,9 @@ export async function reactivateLead(leadId: string) {
         data: { isArquivado: false },
     });
 
-    revalidatePath("/arquivados");
-    revalidatePath("/kanban");
-    revalidatePath("/");
+    revalidatePath("/", "layout");
 }
 
-// -----------------------------------------------------------------------
-// deleteLeadForever — exclusão permanente
-// -----------------------------------------------------------------------
 export async function deleteLeadForever(leadId: string) {
     const session = await requireSession();
 
@@ -232,6 +184,5 @@ export async function deleteLeadForever(leadId: string) {
         },
     });
 
-    revalidatePath("/arquivados");
-    revalidatePath("/");
+    revalidatePath("/", "layout");
 }

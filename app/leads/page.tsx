@@ -1,7 +1,10 @@
-// app/leads/page.tsx
 import { Users } from "lucide-react";
 import { getLeads } from "@/app/actions/lead.actions";
 import { LeadsClient } from "@/components/leads/LeadsClient";
+
+// 🚀 TRAVA ANTI-CACHE DA VERCEL
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function LeadsPage() {
     let dbLeads: Awaited<ReturnType<typeof getLeads>> = [];
@@ -11,7 +14,7 @@ export default async function LeadsPage() {
         dbLeads = [];
     }
 
-    // Mapeamento atualizado: Agora o "pedágio" deixa passar as Observações e o Histórico!
+    // Pedágio com os novos campos liberados
     const leads: any[] = dbLeads.map((l: any) => ({
         id: l.id,
         nome: l.nome,
@@ -24,8 +27,8 @@ export default async function LeadsPage() {
         isArquivado: l.isArquivado,
         updatedAt: l.updatedAt.toISOString(),
         criadoEm: l.criadoEm.toISOString(),
-        observacoes: l.observacoes || "", // 👈 Campo novo liberado
-        history: l.history || [],         // 👈 Campo novo liberado
+        observacoes: l.observacoes || "",
+        history: l.history || [],
     }));
 
     return (
