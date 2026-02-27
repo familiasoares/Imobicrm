@@ -67,8 +67,8 @@ enum SubscriptionStatus {
 ///   1-para-1 com Subscription(cada imobiliária tem uma assinatura)
 model Tenant {
   id        String   @id @default(cuid())
-  nome      String                        // Nome fantasia da imobiliária
-  cnpj      String?  @unique              // CNPJ (opcional, para faturação)
+  nome      String                              // Nome fantasia da imobiliária
+  cnpj      String?  @unique                    // CNPJ (opcional, para faturação)
   criadoEm  DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -88,15 +88,15 @@ model Tenant {
 /// Preparado para integração futura com o gateway Asaas.
 /// Relacionamento: N-para-1 com Tenant (cada assinatura pertence a um tenant).
 model Subscription {
-  id             String             @id @default(cuid())
-  tenantId       String             @unique           // FK → Tenant (1-1)
-  status         SubscriptionStatus @default(ATIVA)
-  dataVencimento DateTime                             // Próxima data de cobrança/vencimento
-  linkPagamento  String?                              // URL de boleto/Pix gerado pelo Asaas
-  asaasCustomerId String?                             // ID do cliente no Asaas (integração externa)
-  asaasSubscriptionId String?                         // ID da assinatura no Asaas
-  criadoEm       DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id                 String             @id @default(cuid())
+  tenantId           String             @unique           // FK → Tenant (1-1)
+  status             SubscriptionStatus @default(ATIVA)
+  dataVencimento     DateTime                             // Próxima data de cobrança/vencimento
+  linkPagamento      String?                              // URL de boleto/Pix gerado pelo Asaas
+  asaasCustomerId    String?                              // ID do cliente no Asaas (integração externa)
+  asaasSubscriptionId String?                             // ID da assinatura no Asaas
+  criadoEm           DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   // Relacionamento (N-1)
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -115,12 +115,12 @@ model Subscription {
 ///   1-para-N com Lead   (um corretor pode ser responsável por vários leads)
 model User {
   id        String   @id @default(cuid())
-  tenantId  String?                       // NULL apenas para ADMIN_SAAS
+  tenantId  String?                             // NULL apenas para ADMIN_SAAS
   nome      String
   email     String   @unique
-  senha     String                        // Hash bcrypt — nunca armazenar em texto simples
+  senha     String                              // Hash bcrypt — nunca armazenar em texto simples
   role      UserRole @default(CORRETOR)
-  ativo     Boolean  @default(true)       // Permite desativar conta sem apagar
+  ativo     Boolean  @default(true)             // Permite desativar conta sem apagar
   criadoEm DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -147,15 +147,16 @@ model User {
 ///   1-para-N com LeadHistory (histórico de mudanças de status)
 model Lead {
   id          String     @id @default(cuid())
-  tenantId    String                          // FK → Tenant (isolamento multi-tenant)
-  userId      String?                         // FK → User (corretor responsável; nullable = sem responsável)
+  tenantId    String                              // FK → Tenant (isolamento multi-tenant)
+  userId      String?                             // FK → User (corretor responsável; nullable = sem responsável)
   nome        String
   telefone    String
-  ddd         String                          // Ex.: "11", "21", "47" (max 3 chars)
+  ddd         String                              // Ex.: "11", "21", "47" (max 3 chars)
   cidade      String
-  interesse   String                          // Ex.: "Compra", "Locação", "Investimento"
+  interesse   String
+  observacoes String?    @db.Text                 // 👈 AQUI ESTÁ O CAMPO NOVO!
   status      LeadStatus @default(NOVO_LEAD)
-  isArquivado Boolean    @default(false)      // Soft-delete: true = lead arquivado/descartado
+  isArquivado Boolean    @default(false)          // Soft-delete: true = lead arquivado/descartado
   criadoEm   DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
@@ -188,8 +189,8 @@ model Lead {
 /// de perda se for reativado e perdido novamente).
 model LossReason {
   id        String   @id @default(cuid())
-  leadId    String                        // FK → Lead
-  motivo    String                        // Texto livre: ex. "Preço acima do orçamento"
+  leadId    String                              // FK → Lead
+  motivo    String                              // Texto livre: ex. "Preço acima do orçamento"
   criadoEm DateTime @default(now())
 
   // Relacionamento N-1 com Lead
@@ -207,12 +208,12 @@ model LossReason {
 /// Permite visualizar o percurso completo do lead no funil.
 /// Relacionamento: N-para-1 com Lead (um lead pode ter N transições).
 model LeadHistory {
-  id          String     @id @default(cuid())
-  leadId      String                          // FK → Lead
-  statusAntes LeadStatus                      // Status anterior à mudança
-  statusDepois LeadStatus                     // Novo status após a mudança
-  observacao  String?                         // Nota opcional do corretor sobre a transição
-  criadoEm   DateTime   @default(now())
+  id           String     @id @default(cuid())
+  leadId       String                                // FK → Lead
+  statusAntes  LeadStatus                            // Status anterior à mudança
+  statusDepois LeadStatus                            // Novo status após a mudança
+  observacao   String?                               // Nota opcional do corretor sobre a transição
+  criadoEm    DateTime   @default(now())
 
   // Relacionamento N-1 com Lead
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
