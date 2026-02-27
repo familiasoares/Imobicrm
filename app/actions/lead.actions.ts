@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getServerAuthSession } from "@/lib/auth";
-// LeadStatus defined inline to avoid Prisma client regeneration race
+
 type LeadStatus =
     | "NOVO_LEAD"
     | "EM_ATENDIMENTO"
@@ -13,12 +13,9 @@ type LeadStatus =
     | "VENDA_FECHADA"
     | "VENDA_PERDIDA";
 
-
 // -----------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------
-
-/** Throws if no session or no tenantId — guards every action */
 async function requireSession() {
     const session = await getServerAuthSession();
     if (!session?.user?.tenantId) {
@@ -28,7 +25,7 @@ async function requireSession() {
 }
 
 // -----------------------------------------------------------------------
-// getLeads — lista leads não-arquivados do tenant logado
+// getLeads — lista leads não-arquivados com histórico
 // -----------------------------------------------------------------------
 export async function getLeads() {
     const session = await requireSession();
@@ -43,6 +40,9 @@ export async function getLeads() {
             corretor: {
                 select: { id: true, nome: true, email: true },
             },
+            history: {
+                orderBy: { criadoEm: "desc" } // 👈 Traz o histórico do mais novo pro mais velho
+            }
         },
     });
 
@@ -58,6 +58,7 @@ export type UpdateLeadData = {
     ddd?: string;
     cidade?: string;
     interesse?: string;
+    observacoes?: string; // 👈 Adicionado campo de observações fixas
 };
 
 export async function updateLead(leadId: string, data: UpdateLeadData) {
@@ -72,9 +73,6 @@ export async function updateLead(leadId: string, data: UpdateLeadData) {
     revalidatePath("/kanban");
     revalidatePath("/");
 }
-
-
-
 
 // -----------------------------------------------------------------------
 // createLead — cria novo lead para o tenant logado
@@ -93,7 +91,7 @@ export async function createLead(data: CreateLeadData) {
     const lead = await prisma.lead.create({
         data: {
             tenantId: session.user.tenantId,
-            userId: session.user.id,   // criador = responsável inicial
+            userId: session.user.id,
             nome: data.nome,
             telefone: data.telefone,
             ddd: data.ddd,
@@ -105,7 +103,7 @@ export async function createLead(data: CreateLeadData) {
 
     revalidatePath("/leads");
     revalidatePath("/kanban");
-    revalidatePath("/");           // dashboard stats
+    revalidatePath("/");
 
     return lead;
 }
@@ -116,16 +114,14 @@ export async function createLead(data: CreateLeadData) {
 export async function updateLeadStatus(leadId: string, newStatus: LeadStatus) {
     const session = await requireSession();
 
-    // Read current status first (needed for LeadHistory)
     const current = await prisma.lead.findFirst({
         where: { id: leadId, tenantId: session.user.tenantId },
         select: { status: true },
     });
 
     if (!current) throw new Error("Lead não encontrado ou sem permissão.");
-    if (current.status === newStatus) return; // noop
+    if (current.status === newStatus) return;
 
-    // Update status + record history in a transaction
     await prisma.$transaction([
         prisma.lead.update({
             where: { id: leadId },
@@ -145,6 +141,32 @@ export async function updateLeadStatus(leadId: string, newStatus: LeadStatus) {
     revalidatePath("/");
 }
 
+// -----------------------------------------------------------------------
+// addLeadNote — adiciona uma anotação na timeline (Sem mudar status)
+// -----------------------------------------------------------------------
+export async function addLeadNote(leadId: string, observacao: string) {
+    const session = await requireSession();
+
+    const current = await prisma.lead.findFirst({
+        where: { id: leadId, tenantId: session.user.tenantId },
+        select: { status: true },
+    });
+
+    if (!current) throw new Error("Lead não encontrado ou sem permissão.");
+
+    await prisma.leadHistory.create({
+        data: {
+            leadId,
+            statusAntes: current.status,
+            statusDepois: current.status, // Status não muda, apenas a nota é salva
+            observacao,
+        },
+    });
+
+    revalidatePath("/kanban");
+    revalidatePath("/leads");
+    revalidatePath("/");
+}
 
 // -----------------------------------------------------------------------
 // archiveLead — soft-delete
@@ -162,7 +184,6 @@ export async function archiveLead(leadId: string) {
     revalidatePath("/");
 }
 
-
 // -----------------------------------------------------------------------
 // getArchivedLeads — lista leads arquivados do tenant
 // -----------------------------------------------------------------------
@@ -175,6 +196,9 @@ export async function getArchivedLeads() {
             isArquivado: true,
         },
         orderBy: { updatedAt: "desc" },
+        include: {
+            history: { orderBy: { criadoEm: "desc" } } // Traz o histórico também para os arquivados
+        }
     });
 }
 
@@ -194,9 +218,8 @@ export async function reactivateLead(leadId: string) {
     revalidatePath("/");
 }
 
-
 // -----------------------------------------------------------------------
-// deleteLeadForever — exclusão permanente (apenas arquivados)
+// deleteLeadForever — exclusão permanente
 // -----------------------------------------------------------------------
 export async function deleteLeadForever(leadId: string) {
     const session = await requireSession();
@@ -205,11 +228,10 @@ export async function deleteLeadForever(leadId: string) {
         where: {
             id: leadId,
             tenantId: session.user.tenantId,
-            isArquivado: true,  // safety: só pode excluir leads já arquivados
+            isArquivado: true,
         },
     });
 
     revalidatePath("/arquivados");
     revalidatePath("/");
 }
-

@@ -1,18 +1,12 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useTransition } from "react";
-import {
-    X, User, Phone, MapPin, Home,
-    Loader2, Archive, ExternalLink,
-} from "lucide-react";
+import { X, User, Phone, MapPin, Home, Loader2, Archive, ExternalLink, FileText, Send, Clock, Edit3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useModal } from "@/components/providers/ModalProvider";
 import { useToast } from "@/components/ui/Toast";
-import { updateLead, archiveLead } from "@/app/actions/lead.actions";
+import { updateLead, archiveLead, addLeadNote } from "@/app/actions/lead.actions";
 
-// -----------------------------------------------------------------------
-// Interest options (kept in sync with CreateLeadModal)
-// -----------------------------------------------------------------------
 const INTERESSE_OPTIONS = [
     "Compra — Casa",
     "Compra — Apartamento",
@@ -23,16 +17,6 @@ const INTERESSE_OPTIONS = [
     "Investimento",
 ];
 
-const DDD_OPTIONS = [
-    "11", "12", "13", "14", "15", "16", "17", "18", "19",
-    "21", "22", "24", "27", "28", "31", "32", "33", "34", "35", "37", "38",
-    "41", "42", "43", "44", "45", "46", "47", "48", "49", "51", "53", "54", "55",
-    "61", "62", "63", "64", "65", "66", "67", "68", "69",
-    "71", "73", "74", "75", "77", "79", "81", "82", "83", "84", "85", "86", "87", "88", "89",
-    "91", "92", "93", "94", "95", "96", "97", "98", "99",
-];
-
-// Status display labels
 const STATUS_LABELS: Record<string, string> = {
     NOVO_LEAD: "Novo Lead",
     EM_ATENDIMENTO: "Em Atendimento",
@@ -42,12 +26,13 @@ const STATUS_LABELS: Record<string, string> = {
     VENDA_FECHADA: "Venda Fechada",
     VENDA_PERDIDA: "Venda Perdida",
 };
+
 const STATUS_COLORS: Record<string, string> = {
-    NOVO_LEAD: "#6366f1",
-    EM_ATENDIMENTO: "#3b82f6",
-    VISITA: "#8b5cf6",
-    AGENDAMENTO: "#f59e0b",
-    PROPOSTA: "#ec4899",
+    NOVO_LEAD: "#06b6d4",
+    EM_ATENDIMENTO: "#22d3ee",
+    VISITA: "#0891b2",
+    AGENDAMENTO: "#3b82f6",
+    PROPOSTA: "#8b5cf6",
     VENDA_FECHADA: "#10b981",
     VENDA_PERDIDA: "#ef4444",
 };
@@ -58,54 +43,50 @@ type FormData = {
     telefone: string;
     cidade: string;
     interesse: string;
+    observacoes: string;
 };
 type FormErrors = Partial<Record<keyof FormData, string>>;
 
 function validate(data: FormData): FormErrors {
     const errors: FormErrors = {};
-    if (!data.nome.trim()) errors.nome = "Nome é obrigatório";
-    if (!data.telefone.trim()) errors.telefone = "Telefone é obrigatório";
-    if (!data.cidade.trim()) errors.cidade = "Cidade é obrigatória";
-    if (!data.interesse) errors.interesse = "Selecione um interesse";
+    if (!data.nome.trim()) errors.nome = "Obrigatório";
+    if (!data.ddd.trim()) errors.ddd = "Obrigatório";
+    if (!data.telefone.trim()) errors.telefone = "Obrigatório";
+    if (!data.cidade.trim()) errors.cidade = "Obrigatório";
+    if (!data.interesse) errors.interesse = "Selecione";
     return errors;
 }
 
-// -----------------------------------------------------------------------
-// Modal
-// -----------------------------------------------------------------------
 export function EditLeadModal() {
     const { modal, close } = useModal();
     const { toast } = useToast();
     const router = useRouter();
+
     const [form, setForm] = useState<FormData | null>(null);
     const [errors, setErrors] = useState<FormErrors>({});
+    const [newNote, setNewNote] = useState("");
+
     const [isPending, startTransition] = useTransition();
+    const [isPendingNote, startTransitionNote] = useTransition();
     const [archiveConfirm, setArchiveConfirm] = useState(false);
+
     const firstInputRef = useRef<HTMLInputElement>(null);
 
     const isOpen = modal.type === "edit";
     const lead = isOpen ? modal.lead : null;
 
-    // Populate form when lead changes
     useEffect(() => {
         if (!isOpen || !lead) { setForm(null); setErrors({}); setArchiveConfirm(false); return; }
         setForm({
-            nome: lead.nome,
-            ddd: lead.ddd,
-            telefone: lead.telefone,
-            cidade: lead.cidade,
-            interesse: lead.interesse,
+            nome: lead.nome || "",
+            ddd: lead.ddd || "",
+            telefone: lead.telefone || "",
+            cidade: lead.cidade || "",
+            interesse: lead.interesse || "",
+            observacoes: lead.observacoes || "",
         });
         setTimeout(() => firstInputRef.current?.focus(), 60);
     }, [isOpen, lead]);
-
-    // Escape key
-    useEffect(() => {
-        if (!isOpen) return;
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, [isOpen, close]);
 
     if (!isOpen || !lead || !form) return null;
 
@@ -114,7 +95,7 @@ export function EditLeadModal() {
         if (errors[field]) setErrors((e) => ({ ...e, [field]: undefined }));
     };
 
-    // ---- Save ----
+    // ---- Salvar Dados Principais ----
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
         if (!form) return;
@@ -129,10 +110,11 @@ export function EditLeadModal() {
                     telefone: form.telefone.trim(),
                     cidade: form.cidade.trim(),
                     interesse: form.interesse,
+                    observacoes: form.observacoes.trim(),
                 });
                 close();
                 toast("Lead atualizado com sucesso!", "success");
-                router.refresh(); // re-fetch DB → LeadsClient + KanbanBoard sync via useEffect
+                router.refresh();
             } catch (err) {
                 console.error(err);
                 toast("Erro ao atualizar lead.", "error");
@@ -140,7 +122,7 @@ export function EditLeadModal() {
         });
     };
 
-    // ---- Archive ----
+    // ---- Arquivar ----
     const handleArchive = () => {
         if (!archiveConfirm) { setArchiveConfirm(true); return; }
         startTransition(async () => {
@@ -148,7 +130,7 @@ export function EditLeadModal() {
                 await archiveLead(lead.id);
                 close();
                 toast("Lead arquivado.", "warning");
-                router.refresh(); // remove card from board + list without F5
+                router.refresh();
             } catch (err) {
                 console.error(err);
                 toast("Erro ao arquivar lead.", "error");
@@ -156,202 +138,277 @@ export function EditLeadModal() {
         });
     };
 
-    const statusColor = STATUS_COLORS[lead.status] ?? "#6366f1";
+    // ---- Salvar Nota na Timeline ----
+    const handleAddNote = () => {
+        if (!newNote.trim()) return;
+
+        startTransitionNote(async () => {
+            try {
+                await addLeadNote(lead.id, newNote.trim());
+                toast("Anotação adicionada ao histórico!", "success");
+                setNewNote("");
+
+                // Refresh para recarregar o array de `history` do banco
+                router.refresh();
+
+                // Pequeno "hack" para fechar e abrir rapidamente atualizado, caso a lista não re-renderize sozinha
+                close();
+                setTimeout(() => router.refresh(), 100);
+            } catch (err) {
+                toast("Erro ao adicionar nota.", "error");
+            }
+        });
+    };
+
+    const statusColor = STATUS_COLORS[lead.status] ?? "#06b6d4";
 
     return (
-        <>
-            {/* Backdrop */}
-            <div
-                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-                onClick={close}
-                aria-hidden="true"
-            />
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
 
-            {/* Dialog */}
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={close} aria-hidden="true" />
+
             <div
                 role="dialog"
                 aria-modal="true"
-                aria-labelledby="edit-lead-title"
-                className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                className="relative w-full max-w-5xl bg-[#0a0a0a] border border-cyan-500/20 rounded-2xl shadow-[0_20px_60px_-15px_rgba(6,182,212,0.3)] flex flex-col overflow-hidden animate-fade-in-up"
+                style={{ maxHeight: '90dvh' }}
             >
-                <div
-                    className="relative w-full max-w-lg rounded-2xl animate-fade-in overflow-hidden"
-                    style={{
-                        background: "rgba(9,15,36,0.97)",
-                        border: "1px solid rgba(255,255,255,0.07)",
-                        backdropFilter: "blur(24px)",
-                        WebkitBackdropFilter: "blur(24px)",
-                        boxShadow: "0 0 60px rgba(99,102,241,0.12), 0 32px 64px rgba(0,0,0,0.6)",
-                    }}
-                >
-                    {/* Accent bar */}
-                    <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${statusColor}, transparent)` }} />
+                {/* Linha de Status Superior */}
+                <div className="shrink-0 h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${statusColor}, transparent)` }} />
 
-                    <div className="p-6 sm:p-7">
-                        {/* Header */}
-                        <div className="flex items-start justify-between mb-5">
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span
-                                        className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                                        style={{
-                                            background: `${statusColor}22`,
-                                            color: statusColor,
-                                            border: `1px solid ${statusColor}44`,
-                                        }}
-                                    >
-                                        {STATUS_LABELS[lead.status] ?? lead.status}
-                                    </span>
-                                </div>
-                                <h2 id="edit-lead-title" className="text-lg font-bold text-white">
-                                    Editar Lead
-                                </h2>
-                                <p className="text-xs text-slate-500 mt-0.5">ID interno: {lead.id.slice(0, 8)}…</p>
-                            </div>
-                            <button onClick={close} className="btn-ghost p-1.5" aria-label="Fechar">
-                                <X className="h-4 w-4" />
-                            </button>
+                {/* Header Blindado */}
+                <div className="shrink-0 flex items-start justify-between px-6 py-5 border-b border-white/[0.06] bg-[#0d0d0d]">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <span
+                                className="rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest border"
+                                style={{ background: `${statusColor}15`, color: statusColor, borderColor: `${statusColor}30` }}
+                            >
+                                {STATUS_LABELS[lead.status] ?? lead.status}
+                            </span>
+                            <span className="text-xs text-slate-500 font-medium tracking-wide">
+                                ID: {lead.id.slice(0, 8)}
+                            </span>
                         </div>
+                        <h2 id="edit-lead-title" className="text-xl font-black text-white tracking-tight">
+                            Gestão do Lead
+                        </h2>
+                    </div>
+                    <button onClick={close} className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors" aria-label="Fechar">
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
 
-                        {/* Form */}
-                        <form onSubmit={handleSave} noValidate className="space-y-4">
+                {/* Corpo Dividido */}
+                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 min-h-full">
 
-                            {/* Nome */}
-                            <EField label="Nome Completo" error={errors.nome} icon={<User className="h-4 w-4" />}>
-                                <input
-                                    ref={firstInputRef}
-                                    type="text"
-                                    value={form.nome}
-                                    onChange={(e) => set("nome", e.target.value)}
-                                    className={`glass-input pl-10 ${errors.nome ? "border-red-500/40" : ""}`}
-                                    disabled={isPending}
-                                />
-                            </EField>
+                        {/* ----------------- LADO ESQUERDO: DADOS DO LEAD ----------------- */}
+                        <div className="lg:col-span-5 p-6 border-b lg:border-b-0 lg:border-r border-white/[0.06] bg-[#0a0a0a]">
+                            <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                <User className="h-4 w-4" /> Dados do Contato
+                            </h3>
 
-                            {/* DDD + Telefone */}
-                            <div className="flex gap-3">
-                                <div className="w-28 flex-shrink-0">
-                                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">DDD</label>
-                                    <select
-                                        value={form.ddd}
-                                        onChange={(e) => set("ddd", e.target.value)}
-                                        className="glass-input"
-                                        disabled={isPending}
-                                    >
-                                        {DDD_OPTIONS.map((d) => <option key={d} value={d}>{d}</option>)}
-                                    </select>
-                                </div>
-                                <EField label="Telefone / WhatsApp" error={errors.telefone} icon={<Phone className="h-4 w-4" />} className="flex-1">
+                            <form onSubmit={handleSave} className="space-y-5">
+                                <EField label="Nome Completo" error={errors.nome} icon={<User className="h-4 w-4" />}>
                                     <input
-                                        type="tel"
-                                        value={form.telefone}
-                                        onChange={(e) => set("telefone", e.target.value)}
-                                        className={`glass-input pl-10 ${errors.telefone ? "border-red-500/40" : ""}`}
-                                        disabled={isPending}
+                                        ref={firstInputRef} type="text" value={form.nome} onChange={(e) => set("nome", e.target.value)} disabled={isPending}
+                                        className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 ${errors.nome ? "border-red-500/50" : ""}`}
                                     />
                                 </EField>
-                            </div>
 
-                            {/* Cidade */}
-                            <EField label="Cidade" error={errors.cidade} icon={<MapPin className="h-4 w-4" />}>
-                                <input
-                                    type="text"
-                                    value={form.cidade}
-                                    onChange={(e) => set("cidade", e.target.value)}
-                                    className={`glass-input pl-10 ${errors.cidade ? "border-red-500/40" : ""}`}
-                                    disabled={isPending}
+                                <div className="flex gap-4">
+                                    <div className="w-24 flex-shrink-0">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">DDD</label>
+                                        <input
+                                            type="text" maxLength={2} value={form.ddd} onChange={(e) => set("ddd", e.target.value.replace(/\D/g, ''))} disabled={isPending}
+                                            className={`glass-input w-full bg-[#050505] border-white/10 text-center text-sm focus:border-cyan-500/50 ${errors.ddd ? "border-red-500/50" : ""}`}
+                                        />
+                                    </div>
+                                    <EField label="Telefone / WhatsApp" error={errors.telefone} icon={<Phone className="h-4 w-4" />} className="flex-1">
+                                        <input
+                                            type="tel" value={form.telefone} onChange={(e) => set("telefone", e.target.value)} disabled={isPending}
+                                            className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 ${errors.telefone ? "border-red-500/50" : ""}`}
+                                        />
+                                    </EField>
+                                </div>
+
+                                <EField label="Cidade" error={errors.cidade} icon={<MapPin className="h-4 w-4" />}>
+                                    <input
+                                        type="text" value={form.cidade} onChange={(e) => set("cidade", e.target.value)} disabled={isPending}
+                                        className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 ${errors.cidade ? "border-red-500/50" : ""}`}
+                                    />
+                                </EField>
+
+                                <EField label="Interesse Principal" error={errors.interesse} icon={<Home className="h-4 w-4" />}>
+                                    <select
+                                        value={form.interesse} onChange={(e) => set("interesse", e.target.value)} disabled={isPending}
+                                        className={`glass-input w-full pl-10 bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 ${errors.interesse ? "border-red-500/50" : ""}`}
+                                    >
+                                        <option value="">Selecione…</option>
+                                        {INTERESSE_OPTIONS.map((opt) => <option key={opt} value={opt} className="bg-[#0a0a0a]">{opt}</option>)}
+                                    </select>
+                                </EField>
+
+                                {/* WhatsApp Link */}
+                                <a
+                                    href={`https://wa.me/55${form.ddd}${form.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 transition-colors"
+                                >
+                                    <ExternalLink className="h-3.5 w-3.5" /> Abrir conversa no WhatsApp
+                                </a>
+
+                                <hr className="border-white/[0.06] my-6" />
+
+                                {/* Perfil de Busca Fixo */}
+                                <div className="space-y-1.5">
+                                    <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                        <FileText className="h-3.5 w-3.5" /> Perfil de Busca / Observações Fixas
+                                    </label>
+                                    <textarea
+                                        value={form.observacoes}
+                                        onChange={(e) => set("observacoes", e.target.value)}
+                                        placeholder="Ex: Cliente busca apartamento de 3 dormitórios, aceita permuta de menor valor..."
+                                        rows={4}
+                                        className="glass-input w-full bg-[#050505] border-white/10 text-sm focus:border-cyan-500/50 resize-none p-3"
+                                        disabled={isPending}
+                                    />
+                                </div>
+
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        type="button" onClick={handleArchive} disabled={isPending}
+                                        className={`flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-lg transition-all ${archiveConfirm ? "bg-amber-500/20 text-amber-400 border border-amber-500/50" : "bg-white/5 text-slate-400 border border-white/10 hover:text-white"}`}
+                                    >
+                                        <Archive className="h-4 w-4" /> {archiveConfirm ? "Confirmar Arquivo?" : "Arquivar"}
+                                    </button>
+                                    <button
+                                        type="submit" disabled={isPending}
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-black bg-cyan-400 rounded-lg hover:bg-cyan-300 transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] uppercase tracking-wide disabled:opacity-60"
+                                    >
+                                        {isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Salvando...</> : "Salvar Dados"}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        {/* ----------------- LADO DIREITO: TIMELINE & HISTÓRICO ----------------- */}
+                        <div className="lg:col-span-7 p-6 bg-[#080808] flex flex-col">
+                            <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                <Clock className="h-4 w-4" /> Histórico e Timeline
+                            </h3>
+
+                            {/* Caixa de Nova Anotação */}
+                            <div className="bg-[#0d0d0d] border border-white/10 rounded-xl p-4 mb-6 relative focus-within:border-indigo-500/50 transition-colors">
+                                <textarea
+                                    value={newNote}
+                                    onChange={(e) => setNewNote(e.target.value)}
+                                    placeholder="Adicione uma anotação na timeline deste lead (Ex: Liguei hoje, pediu para retornar amanhã)."
+                                    rows={3}
+                                    className="w-full bg-transparent text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none resize-none"
                                 />
-                            </EField>
-
-                            {/* Interesse */}
-                            <EField label="Interesse" error={errors.interesse} icon={<Home className="h-4 w-4" />}>
-                                <select
-                                    value={form.interesse}
-                                    onChange={(e) => set("interesse", e.target.value)}
-                                    className={`glass-input pl-10 ${errors.interesse ? "border-red-500/40" : ""}`}
-                                    disabled={isPending}
-                                >
-                                    <option value="">Selecione…</option>
-                                    {INTERESSE_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                                </select>
-                            </EField>
-
-                            {/* WhatsApp quick-link */}
-                            <a
-                                href={`https://wa.me/55${form.ddd}${form.telefone.replace(/\D/g, "")}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
-                            >
-                                <ExternalLink className="h-3.5 w-3.5" />
-                                Abrir WhatsApp
-                            </a>
-
-                            {/* Actions row */}
-                            <div className="flex gap-3 pt-2">
-                                {/* Archive */}
-                                <button
-                                    type="button"
-                                    onClick={handleArchive}
-                                    disabled={isPending}
-                                    className={`btn-ghost border flex-shrink-0 transition-all ${archiveConfirm
-                                        ? "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
-                                        : "border-white/[0.08]"
-                                        }`}
-                                >
-                                    <Archive className="h-4 w-4" />
-                                    {archiveConfirm ? "Confirmar?" : "Arquivar"}
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={close}
-                                    className="btn-ghost"
-                                    disabled={isPending}
-                                >
-                                    Cancelar
-                                </button>
-
-                                <button
-                                    type="submit"
-                                    disabled={isPending}
-                                    className="btn-brand flex-1 justify-center disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
-                                    id="btn-edit-lead-submit"
-                                >
-                                    {isPending ? (
-                                        <><Loader2 className="h-4 w-4 animate-spin" />Salvando…</>
-                                    ) : (
-                                        "Salvar"
-                                    )}
-                                </button>
+                                <div className="flex justify-between items-center mt-2 border-t border-white/[0.06] pt-3">
+                                    <span className="text-[10px] text-slate-500">A anotação ficará salva com a data de hoje.</span>
+                                    <button
+                                        onClick={handleAddNote}
+                                        disabled={isPendingNote || !newNote.trim()}
+                                        className="flex items-center gap-2 bg-indigo-500 text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-indigo-400 disabled:opacity-50 transition-colors"
+                                    >
+                                        {isPendingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                                        Publicar
+                                    </button>
+                                </div>
                             </div>
-                        </form>
+
+                            {/* Lista da Timeline */}
+                            <div className="flex-1 space-y-4">
+
+                                {lead.history && lead.history.length > 0 ? (
+                                    lead.history.map((hist: any) => {
+                                        const isNote = hist.statusAntes === hist.statusDepois && hist.observacao;
+
+                                        return (
+                                            <div key={hist.id} className="flex gap-4">
+                                                <div className="flex flex-col items-center">
+                                                    <div className={`h-8 w-8 rounded-full flex items-center justify-center z-10 ${isNote ? 'bg-indigo-500/10 border border-indigo-500/30 text-indigo-400' : 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400'}`}>
+                                                        {isNote ? <Edit3 className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
+                                                    </div>
+                                                    <div className="w-px h-full bg-white/10 my-1"></div>
+                                                </div>
+                                                <div className="flex-1 pb-4">
+                                                    <div className="flex items-baseline justify-between mb-1">
+                                                        <p className="text-sm font-bold text-slate-200">
+                                                            {isNote ? "Anotação Adicionada" : "Status Alterado"}
+                                                        </p>
+                                                        <span className="text-[10px] text-slate-500 font-medium">
+                                                            {new Date(hist.criadoEm).toLocaleDateString('pt-BR')} às {new Date(hist.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Mostra de onde pra onde mudou se for alteração de Status */}
+                                                    {!isNote && (
+                                                        <p className="text-xs text-slate-500 mt-0.5">
+                                                            Moveu de <span className="text-slate-400 line-through">{STATUS_LABELS[hist.statusAntes] || hist.statusAntes}</span> para <span className="text-cyan-400 font-semibold">{STATUS_LABELS[hist.statusDepois] || hist.statusDepois}</span>
+                                                        </p>
+                                                    )}
+
+                                                    {/* Mostra a caixa da anotação se existir texto */}
+                                                    {hist.observacao && (
+                                                        <div className="bg-white/5 border border-white/10 rounded-lg p-3 mt-2">
+                                                            <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                                                                {hist.observacao}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <p className="text-xs text-slate-500 text-center py-4">Nenhuma movimentação registrada.</p>
+                                )}
+
+                                {/* Card Origem (Fixo no final) */}
+                                <div className="flex gap-4">
+                                    <div className="flex flex-col items-center">
+                                        <div className="h-8 w-8 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 z-10">
+                                            <User className="h-3.5 w-3.5" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-baseline justify-between mb-1">
+                                            <p className="text-sm font-bold text-slate-200">Lead Criado</p>
+                                            <span className="text-[10px] text-slate-500 font-medium">
+                                                {new Date(lead.criadoEm || new Date()).toLocaleDateString('pt-BR')}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-0.5">Entrada no sistema.</p>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </>
+        </div>
     );
 }
 
 // -----------------------------------------------------------------------
 // Field wrapper
 // -----------------------------------------------------------------------
-function EField({
-    label, error, icon, children, className = "",
-}: {
-    label: string; error?: string; icon: React.ReactNode;
-    children: React.ReactNode; className?: string;
-}) {
+function EField({ label, error, icon, children, className = "" }: any) {
     return (
         <div className={`space-y-1.5 ${className}`}>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 {label}
             </label>
             <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">{icon}</span>
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cyan-500/50">{icon}</span>
                 {children}
             </div>
-            {error && <p className="text-xs text-red-400">{error}</p>}
+            {error && <p className="text-[10px] text-red-400">{error}</p>}
         </div>
     );
 }
